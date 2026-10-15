@@ -1,0 +1,1038 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>[hidden]{display:none!important}img{max-width:100%}</style></head><body>
+<meta charset="utf-8">
+<title>車輛借用系統</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<style>
+/* Layout: one shell, two work areas (rooms calendar + day panel / vehicle cards + log). Utility-grade, built for the W5 office and for phones at the car. */
+:root{
+  --bg:#edf0f3; --surface:#ffffff; --surface2:#f5f7f9; --ink:#17202a; --mute:#566370; --line:#d3dae1;
+  --accent:#1b4d7e; --on-accent:#ffffff; --focus:#2b7de0;
+  --exec:#2d6aa8; --exec-bg:#e1ecf8;
+  --c311:#c26a0a; --c311-bg:#fbeedb;
+  --c304:#1d8552; --c304-bg:#dcf2e6;
+  --cweb:#7242b5; --cweb-bg:#ebe3f7;
+  --on-solid:#ffffff;
+  --k1:#2d6aa8;--k1-bg:#e3eefa;--k2:#117f8c;--k2-bg:#d9f0f2;--k3:#c26a0a;--k3-bg:#fbeedb;--k4:#7242b5;--k4-bg:#efe8fa;--k5:#1d8552;--k5-bg:#dff3e8;--k6:#b8346a;--k6-bg:#fae4ee;--today-edge:#d98e00;
+  --ok:#1b7447; --ok-bg:#dff2e7; --warn:#7c5600; --warn-bg:#fff2cc; --bad:#b3261e; --bad-bg:#fbe4e1;
+  --sans:"Noto Sans TC","Microsoft JhengHei","PingFang TC",system-ui,sans-serif;
+  --mono:"JetBrains Mono","Cascadia Mono",Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#10161c; --surface:#18202a; --surface2:#1e2832; --ink:#e5eaef; --mute:#9aa7b4; --line:#2e3944;
+    --accent:#6aaeea; --on-accent:#0b1520; --focus:#7db8f0;
+    --exec:#74aae6; --exec-bg:#1a2b3f;
+    --c311:#f2a655; --c311-bg:#3a2a15;
+    --c304:#55c48c; --c304-bg:#143428;
+    --cweb:#b895f2; --cweb-bg:#2a2147;
+    --on-solid:#10161c;
+  --k1:#74aae6;--k1-bg:#1a2b3f;--k2:#4cc3cf;--k2-bg:#12343a;--k3:#f2a655;--k3-bg:#3a2a15;--k4:#b895f2;--k4-bg:#2a2147;--k5:#55c48c;--k5-bg:#143428;--k6:#f08ab4;--k6-bg:#3d1d2c;--today-edge:#f0b429;
+    --ok:#62cc92; --ok-bg:#15342a; --warn:#f0cc6a; --warn-bg:#3b3012; --bad:#ff8f86; --bad-bg:#3d1c19;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#10161c; --surface:#18202a; --surface2:#1e2832; --ink:#e5eaef; --mute:#9aa7b4; --line:#2e3944;
+  --accent:#6aaeea; --on-accent:#0b1520; --focus:#7db8f0;
+  --exec:#74aae6; --exec-bg:#1a2b3f;
+  --c311:#f2a655; --c311-bg:#3a2a15;
+  --c304:#55c48c; --c304-bg:#143428;
+  --cweb:#b895f2; --cweb-bg:#2a2147;
+  --on-solid:#10161c;
+  --k1:#74aae6;--k1-bg:#1a2b3f;--k2:#4cc3cf;--k2-bg:#12343a;--k3:#f2a655;--k3-bg:#3a2a15;--k4:#b895f2;--k4-bg:#2a2147;--k5:#55c48c;--k5-bg:#143428;--k6:#f08ab4;--k6-bg:#3d1d2c;--today-edge:#f0b429;
+  --ok:#62cc92; --ok-bg:#15342a; --warn:#f0cc6a; --warn-bg:#3b3012; --bad:#ff8f86; --bad-bg:#3d1c19;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.5}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:7px 13px;min-height:38px}
+button:hover{background:var(--surface2)}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,.card-click:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:500}
+button.primary:hover{filter:brightness(1.08)}
+button.danger{color:var(--bad);border-color:var(--bad)}
+button.ghost{border-color:transparent;background:transparent;color:var(--accent)}
+button:disabled{opacity:.5;cursor:not-allowed}
+input[type=text],input[type=date],input[type=time],input[type=number],input[type=url],select,textarea{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--surface);min-height:40px}
+textarea{min-height:68px;resize:vertical}
+.wrap{max-width:1400px;margin:0 auto;padding-inline:16px}
+header.top{background:var(--accent);color:var(--on-accent)}
+header.top .wrap{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;justify-content:space-between;padding-block:10px}
+.brand{font-size:17px;font-weight:700;letter-spacing:.02em}
+.brand small{font-weight:400;opacity:.8;margin-left:8px;font-size:12px}
+.tabs{display:flex;gap:4px}
+.tabs button{background:transparent;border:1px solid transparent;color:inherit;padding:6px 16px;border-radius:6px 6px 0 0;opacity:.85}
+.tabs button[aria-selected="true"]{background:var(--bg);color:var(--ink);opacity:1;font-weight:700}
+.tabs button:hover{background:rgba(255,255,255,.14)}
+.tabs button[aria-selected="true"]:hover{background:var(--bg)}
+#notice{display:grid;gap:6px;padding-top:10px}
+.note{border-radius:6px;padding:8px 12px;font-size:13px}
+.note.soft{background:var(--warn-bg);color:var(--warn)}
+.note.err{background:var(--bad-bg);color:var(--bad)}
+.intro{color:var(--mute);font-size:13px;padding-block:10px 0}
+.intro b{color:var(--ink)}
+main{padding-block:12px 36px}
+.rooms-grid{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:16px}
+@media (max-width:1000px){.rooms-grid{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;min-width:0}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line)}
+.bar .month{font-size:17px;font-weight:700;min-width:130px;text-align:center}
+.chips{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line)}
+.chip{border-radius:16px;padding:3px 13px;min-height:32px;font-size:13px}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.chips label{font-size:13px;display:flex;gap:6px;align-items:center;margin-left:4px}
+.chips input{width:auto;min-height:0}
+.legend{margin-left:auto;display:flex;gap:10px;font-size:12px;color:var(--mute);flex-wrap:wrap}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px}
+.grid7{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
+.dow{padding:6px;text-align:center;font-size:12px;color:var(--mute);border-bottom:1px solid var(--line);background:var(--surface2)}
+.day{min-height:104px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:3px;cursor:pointer;overflow:hidden;min-width:0}
+.day:nth-child(7n){border-right:none}
+.day.out{background:var(--surface2);color:var(--mute)}
+.day.sel{outline:2px solid var(--accent);outline-offset:-2px}
+.day .n{font-size:12px;padding:0 3px;color:var(--mute);font-variant-numeric:tabular-nums}
+.day.today .n{color:var(--on-accent);background:var(--accent);border-radius:9px;padding:0 6px;display:inline-block}
+.ev{--c:var(--exec);--t:var(--exec-bg);font-size:11.5px;line-height:1.35;border-left:3px solid var(--c);background:var(--t);border-radius:3px;padding:1px 4px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ev.b311,.item.b311{--c:var(--c311);--t:var(--c311-bg)}
+.ev.b304,.item.b304{--c:var(--c304);--t:var(--c304-bg)}
+.ev.bWEBEX,.item.bWEBEX{--c:var(--cweb);--t:var(--cweb-bg)}
+.more{font-size:11px;color:var(--mute);padding:1px 4px}
+@media (max-width:640px){
+  .day{min-height:62px;padding:2px}
+  .ev{font-size:0;height:6px;padding:0;border:none;background:var(--c);margin-top:3px;border-radius:2px}
+  .more{font-size:10px}
+  .legend{margin-left:0}
+}
+.side .head{padding:12px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.side h2{font-size:17px;margin:0;font-variant-numeric:tabular-nums}
+.sec{padding:12px;border-bottom:1px solid var(--line)}
+.sec:last-child{border-bottom:none}
+.sec h3{font-size:12px;color:var(--mute);margin:0 0 8px;font-weight:700;letter-spacing:.06em}
+.tl-row{display:grid;grid-template-columns:76px minmax(0,1fr);gap:6px;align-items:center;margin-bottom:6px}
+.tl-name{font-size:12px;font-weight:700}
+.tl-bar{position:relative;height:26px;background:repeating-linear-gradient(90deg,var(--surface2) 0,var(--surface2) calc(100%/12 - 1px),var(--surface) calc(100%/12 - 1px),var(--surface) calc(100%/12));border:1px solid var(--line);border-radius:4px;overflow:hidden}
+.tl-blk{position:absolute;top:2px;bottom:2px;border-radius:3px;font-size:10px;overflow:hidden;color:var(--on-solid);padding:0 3px;white-space:nowrap;line-height:20px}
+.tl-hours{display:grid;grid-template-columns:76px minmax(0,1fr);gap:6px}
+.tl-hours div+div{display:flex;justify-content:space-between;font-size:10px;color:var(--mute);font-family:var(--mono)}
+.item{--c:var(--exec);--t:var(--exec-bg);border:1px solid var(--line);border-left:4px solid var(--c);border-radius:6px;padding:8px 10px;margin-bottom:8px;font-size:13px;min-width:0;overflow-wrap:anywhere}
+.item .t{font-weight:700}
+.item .m{color:var(--mute);margin-top:2px}
+.badge{display:inline-block;font-size:11px;border-radius:9px;padding:0 8px;margin-right:4px;color:var(--on-solid);font-weight:500;vertical-align:1px}
+.badge.r311{background:var(--c311)}.badge.r304{background:var(--c304)}.badge.rWEBEX{background:var(--cweb)}.badge.rexec{background:var(--exec)}
+.empty{color:var(--mute);font-size:13px;padding:6px 0}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+/* vehicles */
+.sec-title{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px}
+.sec-title h2{margin:0;font-size:18px}
+.cars{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px;margin-bottom:18px}
+.vcard{padding:14px;display:grid;gap:10px;align-content:start}
+.vcard .plate,.vhead .plate{font-family:var(--mono);font-weight:700;font-size:22px;letter-spacing:.04em}
+.vrow{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.pill{display:inline-block;border-radius:12px;padding:1px 11px;font-size:12px;font-weight:700;white-space:nowrap}
+.pill.free{background:var(--ok-bg);color:var(--ok)}
+.pill.busy{background:var(--warn-bg);color:var(--warn)}
+.pill.flag{background:var(--bad-bg);color:var(--bad)}
+.kv{display:grid;grid-template-columns:auto minmax(0,1fr);gap:3px 12px;font-size:13px}
+.kv dt{color:var(--mute)}.kv dd{margin:0;overflow-wrap:anywhere}
+.btnrow{display:flex;flex-wrap:wrap;gap:8px}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line);white-space:nowrap;font-variant-numeric:tabular-nums}
+th{font-size:12px;color:var(--mute);background:var(--surface2);font-weight:700}
+.vpage{max-width:640px;margin-inline:auto;display:grid;gap:14px}
+.vhead{padding:14px;display:grid;gap:10px}
+.formcard{padding:14px 16px;display:grid;gap:12px}
+.formcard h2{margin:0;font-size:18px}
+.f>span{display:block;font-weight:700;font-size:14px;margin-bottom:3px}
+.f>span em{color:var(--bad);font-style:normal}
+.f small{display:block;color:var(--mute);font-size:12px;margin-top:2px}
+.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+@media (max-width:420px){.two{grid-template-columns:minmax(0,1fr)}}
+.chk{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg button{border:none;border-radius:0;min-width:58px;background:var(--surface)}
+.seg button[aria-pressed="true"].okb{background:var(--accent);color:var(--on-accent);font-weight:700}
+.seg button[aria-pressed="true"].badb{background:var(--bad);color:var(--on-solid);font-weight:700}
+.submitbar{position:sticky;bottom:0;display:flex;gap:8px;justify-content:flex-end;padding:10px 0 calc(10px + env(safe-area-inset-bottom,0px));background:linear-gradient(to top,var(--bg) 70%,transparent)}
+.thumb{max-width:160px;max-height:120px;border-radius:6px;border:1px solid var(--line);display:block;margin-top:6px}
+/* dialogs */
+dialog{border:none;border-radius:10px;padding:0;width:min(560px,calc(100vw - 32px));max-height:92vh;background:var(--surface);color:var(--ink);box-shadow:0 12px 44px rgba(0,0,0,.35)}
+dialog::backdrop{background:rgba(0,0,0,.5)}
+dialog form,.dbody{padding:18px 20px;display:grid;gap:12px}
+dialog h2{margin:0;font-size:18px}
+.actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.warn{border-radius:6px;padding:8px 10px;font-size:13px;line-height:1.55}
+.warn.err{background:var(--bad-bg);color:var(--bad)}
+.warn.soft{background:var(--warn-bg);color:var(--warn)}
+.warn.ok{background:var(--ok-bg);color:var(--ok)}
+.inline{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+.inline label{display:flex;gap:6px;align-items:center}
+.inline input{width:auto;min-height:0}
+#qrbox{display:grid;place-items:center;padding:12px;background:#fff;border-radius:8px;justify-self:center}
+#qrbox img,#qrbox canvas{max-width:100%;height:auto}
+.linkout{font-family:var(--mono);font-size:12px;word-break:break-all;color:var(--mute);user-select:all}
+#toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:8px;font-size:14px;z-index:50;max-width:calc(100vw - 32px)}
+#cTable th,#cTable td{border-left:1px solid var(--line)}
+#cTable th:first-child,#cTable td:first-child{border-left:none}
+#cTable th{color:var(--on-solid);font-size:13px;letter-spacing:.06em}
+#cTable th:nth-child(1){background:var(--k1)}#cTable td:nth-child(1){background:var(--k1-bg);font-weight:700}
+#cTable th:nth-child(2){background:var(--k2)}#cTable td:nth-child(2){background:var(--k2-bg)}
+#cTable th:nth-child(3){background:var(--k3)}#cTable td:nth-child(3){background:var(--k3-bg)}
+#cTable th:nth-child(4){background:var(--k4)}#cTable td:nth-child(4){background:var(--k4-bg)}
+#cTable th:nth-child(5){background:var(--k5)}#cTable td:nth-child(5){background:var(--k5-bg)}
+#cTable th:nth-child(6){background:var(--k6)}#cTable td:nth-child(6){background:var(--k6-bg)}
+#cTable th:nth-child(7),#cTable td:nth-child(7){background:var(--surface)}
+#cTable tr.wk td:not(:last-child){background-image:linear-gradient(color-mix(in srgb,var(--surface) 55%,transparent),color-mix(in srgb,var(--surface) 55%,transparent));color:var(--mute)}
+#cTable tr.td td:not(:last-child){background-image:none;color:var(--ink);font-weight:700;box-shadow:inset 0 3px 0 var(--today-edge),inset 0 -3px 0 var(--today-edge)}
+#cTable tr.td td:first-child{box-shadow:inset 8px 0 0 var(--today-edge),inset 0 3px 0 var(--today-edge),inset 0 -3px 0 var(--today-edge)}
+#cTable tr.td td:nth-child(1){background-color:color-mix(in srgb,var(--k1) 38%,var(--surface))}
+#cTable tr.td td:nth-child(2){background-color:color-mix(in srgb,var(--k2) 38%,var(--surface))}
+#cTable tr.td td:nth-child(3){background-color:color-mix(in srgb,var(--k3) 38%,var(--surface))}
+#cTable tr.td td:nth-child(4){background-color:color-mix(in srgb,var(--k4) 38%,var(--surface))}
+#cTable tr.td td:nth-child(5){background-color:color-mix(in srgb,var(--k5) 38%,var(--surface))}
+#cTable tr.td td:nth-child(6){background-color:color-mix(in srgb,var(--k6) 38%,var(--surface))}
+.day .hn{display:block;font-size:10.5px;line-height:1.3;color:var(--bad);font-weight:700;padding:0 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.day .hn{background:var(--bad);color:var(--on-solid);border-radius:3px;margin:2px 2px 0;padding:0 5px}
+.day.mk .hn{background:var(--warn)}
+.day.mk{background:color-mix(in srgb,var(--warn) 16%,var(--surface))}
+.day.mk .n{color:var(--warn);font-weight:700}
+.day.hol .n{color:var(--bad);font-weight:700}
+.day.hol{background:color-mix(in srgb,var(--bad) 32%,var(--surface))}
+.day.we{background:color-mix(in srgb,var(--bad) 16%,var(--surface))}
+.day.we .n{color:var(--bad)}
+.day.hol.out,.day.mk.out,.day.we.out{opacity:.7}
+.holtag{display:inline-block;margin-left:6px;padding:0 8px;border-radius:9px;background:var(--bad-bg);color:var(--bad);border:1px solid var(--bad);font-size:11px;font-weight:700;vertical-align:1px;white-space:nowrap}
+.holtag.mk{background:var(--warn-bg);color:var(--warn);border-color:var(--warn)}
+#cTable tr.hol td:not(:last-child){background-color:color-mix(in srgb,var(--bad) 34%,var(--surface));background-image:none}
+#cTable tr.we td:not(:last-child){background-color:color-mix(in srgb,var(--bad) 17%,var(--surface));background-image:none}
+#cTable tr.we td:nth-child(1),#cTable tr.we td:nth-child(2){color:var(--bad)}
+#cTable tr.we td:first-child{box-shadow:inset 4px 0 0 color-mix(in srgb,var(--bad) 60%,var(--surface))}
+#cTable tr.hol td:nth-child(1),#cTable tr.hol td:nth-child(2){color:var(--bad);font-weight:700}
+#cTable tr.hol td:first-child:not(:only-child){box-shadow:inset 6px 0 0 var(--bad)}
+#cTable tr.mk td:not(:last-child){background-color:color-mix(in srgb,var(--warn) 22%,var(--surface));background-image:none}
+#cTable tr.mk td:nth-child(1),#cTable tr.mk td:nth-child(2){color:var(--warn);font-weight:700}
+#cTable tr.mk td:first-child{box-shadow:inset 6px 0 0 var(--warn)}
+#cTable tr.hol.td td:not(:last-child){background-color:color-mix(in srgb,var(--bad) 46%,var(--surface))}
+#cTable tr.we.td td:not(:last-child){background-color:color-mix(in srgb,var(--bad) 26%,var(--surface))}
+.att{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;cursor:pointer;line-height:1.4}
+.att.open{display:block;-webkit-line-clamp:unset}
+.attrow{display:flex;gap:2px}
+.item .clip{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;cursor:pointer}
+.item .clip.open{display:block}
+.attrow .att{flex:1;min-width:0}
+#cTable td.attcell{white-space:normal;width:210px;max-width:210px}
+#cTable td.titlecell{white-space:normal;width:300px;max-width:300px;font-weight:500}
+#cTable td.loccell{white-space:normal;width:170px;max-width:170px}
+.holtag{max-width:9em;overflow:hidden;text-overflow:ellipsis}
+.routebox{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px;align-items:start}
+.routebox>.mono{padding-top:9px;font-weight:700}
+.bftag{display:inline-block;margin-left:4px;padding:0 5px;border-radius:8px;font-size:11px;font-weight:700;background:var(--warn-bg);color:var(--warn);border:1px solid var(--warn);vertical-align:1px}
+.bftag.ed{background:var(--surface2);color:var(--mute);border-color:var(--line)}
+.lastbox{border:1px solid var(--line);background:var(--surface2);border-radius:8px;padding:10px 14px;display:grid;gap:2px}
+.lb-k{font-size:12px;color:var(--mute);font-weight:700;letter-spacing:.06em}
+.lb-v{font-size:28px;font-weight:700;line-height:1.2}
+.lb-s{font-size:12px;color:var(--mute);overflow-wrap:anywhere}
+.hbtn{background:transparent;border:1px solid rgba(255,255,255,.55);color:inherit;min-height:32px;padding:3px 12px;font-size:13px}
+.hbtn:hover{background:rgba(255,255,255,.14)}
+.eqgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
+.eqcard{padding:10px 12px;display:grid;gap:6px;align-content:start}
+.eqname{font-weight:700}
+.eqchecks{display:grid;gap:8px}
+.eqchk{display:flex;gap:10px;align-items:flex-start;padding:8px 10px;border:1px solid var(--line);border-radius:8px}
+.eqchk.busy{opacity:.6;background:var(--surface2)}
+.eqchk input{width:auto;min-height:0;margin-top:4px}
+.sheethead{display:grid;gap:4px;padding:12px 14px 6px}
+.sheettitle{text-align:center;font-weight:700;font-size:18px;letter-spacing:.9em;padding-left:.9em}
+table.sheet{border:2px solid var(--ink);border-collapse:collapse;min-width:680px;margin:0 14px 4px;width:calc(100% - 28px)}
+table.sheet th,table.sheet td{border:1px solid var(--mute);padding:6px 8px;text-align:center;white-space:nowrap;font-size:14px}
+.mk{font-weight:700;font-size:17px}
+.mk.ok{color:var(--ok)}
+.mk.bad{color:var(--bad)}
+table.sheet td.l{text-align:left}
+table.sheet th{background:var(--surface2);color:var(--ink);font-size:13px;line-height:1.3}
+.sheetfoot{font-size:12px;color:var(--mute);padding:6px 14px 12px}
+.todaytag{display:inline-block;margin-left:6px;padding:0 8px;border-radius:9px;background:var(--today-edge);color:#1a1300;font-size:11px;font-weight:700;vertical-align:1px}
+.day.today{background:color-mix(in srgb,var(--today-edge) 24%,var(--surface));box-shadow:inset 0 0 0 2px var(--today-edge)}
+.day.today.sel{box-shadow:none}
+.foot{color:var(--mute);font-size:12px;padding-bottom:28px}
+</style>
+<header class="top">
+  <div class="wrap">
+    <div class="brand">車輛借用系統</div>
+    <button id="btnBackup" class="hbtn" hidden>備份與還原</button>
+  </div>
+</header>
+<div class="wrap" id="notice"></div>
+
+<div class="wrap" id="vCars"><main id="carMain"></main></div>
+<dialog id="dlgQR">
+  <div class="dbody">
+    <h2 id="qrTitle">車輛 QR Code</h2>
+    <div id="qrbox"></div>
+    <div class="linkout" id="qrLink"></div>
+    <label class="f"><span>本系統網址</span>
+      <input type="url" id="qrBase" placeholder="貼上本頁在瀏覽器的網址">
+      <small>QR Code 會指向「這個網址＋車號」。換到公司伺服器後，更新這裡再重新列印。</small>
+    </label>
+    <div class="actions">
+      <button type="button" id="qrSaveBase">儲存網址</button>
+      <button type="button" id="qrCopy">複製連結</button>
+      <button type="button" id="qrDownload" class="primary">下載 PNG</button>
+      <button type="button" id="qrClose">關閉</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="dlgBackup">
+  <div class="dbody">
+    <h2>資料備份與還原</h2>
+    <div class="warn soft">備份檔含人員姓名與車輛行車紀錄，請存放在有權限控管的位置，不要上傳到公開網站。</div>
+    <div id="bkSummary"></div>
+    <div class="actions"><button type="button" id="bkPaper">匯出車輛記錄表（紙本格式）</button><button type="button" id="bkDownload" class="primary">備份全部資料（下載）</button></div>
+    <hr style="border:none;border-top:1px solid var(--line);margin:4px 0">
+    <label class="f"><span>從備份檔還原</span><input type="file" id="bkFile" accept=".json,application/json"><small>只能使用本系統產生的備份檔（.json）。</small></label>
+    <div id="bkPreview"></div>
+    <label id="bkFullWrap" hidden style="display:flex;gap:8px;align-items:flex-start;font-size:13px"><input type="checkbox" id="bkFull" style="width:auto;min-height:0;margin-top:3px"><span>完全還原：同時刪除備份檔裡沒有的現有資料（預設不勾，只覆蓋同編號的資料）</span></label>
+    <div id="bkProgress" class="empty"></div>
+    <div class="actions"><button type="button" id="bkRestore" disabled>開始還原</button><button type="button" id="bkClose">關閉</button></div>
+  </div>
+</dialog>
+
+<dialog id="dlgAsk">
+  <div class="dbody"><p id="askMsg" style="margin:0"></p><div class="actions" id="askBtns"></div></div>
+</dialog>
+
+<div id="toast" role="status" hidden></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script><script>
+(function(){
+'use strict';
+var $=function(id){return document.getElementById(id)};
+var WD=['日','一','二','三','四','五','六'];
+function pad(n){return String(n).padStart(2,'0')}
+function ds(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())}
+function pd(s){var p=s.split('-');return new Date(+p[0],+p[1]-1,+p[2])}
+function tm(s){var p=s.split(':');return +p[0]*60+ +p[1]}
+function fmt(m){return pad(Math.floor(m/60))+':'+pad(m%60)}
+function nowTime(){var d=new Date();return pad(d.getHours())+':'+pad(d.getMinutes())}
+function fmtAt(iso){if(!iso)return '—';var d=pd(iso.slice(0,10));return (d.getMonth()+1)+'/'+d.getDate()+' '+iso.slice(11,16)}
+function h(tag,a){
+  var e=document.createElement(tag),val;
+  if(a)for(var k in a){var v=a[k];if(v==null||v===false)continue;
+    if(k==='class')e.className=v;else if(k==='text')e.textContent=v;
+    else if(k==='value')val=v;else if(k==='checked')e.checked=!!v;
+    else if(k.slice(0,2)==='on')e.addEventListener(k.slice(2),v);
+    else e.setAttribute(k,v===true?'':v)}
+  for(var i=2;i<arguments.length;i++)add(e,arguments[i]);
+  if(val!==undefined)e.value=val;
+  return e;
+}
+function add(e,c){
+  if(c==null||c===false)return;
+  if(Array.isArray(c))c.forEach(function(x){add(e,x)});
+  else e.appendChild(typeof c==='object'?c:document.createTextNode(String(c)));
+}
+var toastT;
+function toast(msg){var t=$('toast');t.textContent=msg;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(function(){t.hidden=true},3200)}
+function ask(msg,btns){
+  return new Promise(function(res){
+    var d=$('dlgAsk'),box=$('askBtns'),done=false;
+    $('askMsg').textContent=msg;box.textContent='';
+    function fin(v){if(done)return;done=true;d.close();res(v)}
+    btns.forEach(function(b){box.appendChild(h('button',{type:'button',class:b[2]||'',text:b[0],onclick:function(){fin(b[1])}}))});
+    d.addEventListener('cancel',function(){fin(0)},{once:true});
+    d.showModal();
+  });
+}
+
+/* ================= data layer ================= */
+var NAMES=['vehicles','vehicleLogs','settings','vehicleRepairs','roster','places','vehicleDeleted'];
+var data={vehicles:[],vehicleLogs:[],settings:[],vehicleRepairs:[],roster:[],places:[],vehicleDeleted:[]};
+var db=null,dl=null,user=null,mode='connecting',canWrite=true,isAdmin=true,dbErr='';
+var LKEY='vehiclelog.local.v1';
+function fire(){try{renderAll()}catch(e){console.error(e)}}
+function localLoad(){try{var r=localStorage.getItem(LKEY);if(r){var o=JSON.parse(r);NAMES.forEach(function(n){data[n]=o[n]||[]});return true}}catch(e){}return false}
+function localSave(){try{localStorage.setItem(LKEY,JSON.stringify(data))}catch(e){}}
+function put(n,obj){
+  var body=JSON.parse(JSON.stringify(obj));var id=body.id;delete body.id;
+  if(db)return db.doc(n+'/'+id).set(body);
+  var i=data[n].findIndex(function(x){return x.id===id});
+  if(i>=0)data[n][i]=obj;else data[n].push(obj);
+  localSave();fire();return Promise.resolve();
+}
+function del(n,id){
+  if(db)return db.doc(n+'/'+id).delete();
+  data[n]=data[n].filter(function(x){return x.id!==id});localSave();fire();return Promise.resolve();
+}
+function writeErr(e){
+  var c=e&&e.code;
+  toast(c==='invalid_argument'?'沒有寫入權限，請管理者將你設為 Contributor 以上。':c==='quota_exceeded'?'資料量已達上限，請通知管理者。':'儲存失敗，請稍後再試。');
+}
+function seedLocal(){
+  data.vehicles=[{id:'DEMO-001',plate:'DEMO-001',name:'示範車輛 1',lastMileage:1000},{id:'DEMO-002',plate:'DEMO-002',name:'示範車輛 2',lastMileage:25000}];
+  data.vehicleLogs=[];data.settings=[];data.vehicleRepairs=[];data.roster=[];data.places=[];data.vehicleDeleted=[];
+}
+function startLocal(){mode='local';if(!localLoad())seedLocal();fire()}
+function subscribe(n){
+  db.collection(n).onSnapshot(function(s){
+    data[n]=s.docs.map(function(d){return Object.assign({id:d.id},d.data())});fire();
+  },function(e){dbErr='資料連線中斷（'+(e&&e.code||'錯誤')+'），請重新整理頁面。';fire()});
+}
+async function connect(){
+  var c=window.claude;
+  if(!c||!c.use){startLocal();return}
+  try{db=await c.use('db')}catch(e){db=null}
+  try{user=await c.use('user')}catch(e){user=null}
+  try{dl=await c.use('downloads')}catch(e){dl=null}
+  if(!db){startLocal();return}
+  mode='shared';
+  if(user){
+    try{var w=await user.can('data.write');canWrite=(w!==false)}catch(e){}
+    try{isAdmin=!!(await user.canEdit())}catch(e){}
+  }
+  NAMES.forEach(subscribe);
+  fire();
+}
+function setting(k){var s=data.settings.find(function(x){return x.id==='app'});return s&&s[k]||''}
+
+/* ================= shell (single view) ================= */
+function setTab(){renderAll(true)}
+function renderNotice(){
+  var bb=$('btnBackup');if(bb)bb.hidden=!isAdmin;
+  var n=$('notice');n.textContent='';
+  if(mode==='local')n.appendChild(h('div',{class:'note soft',text:'示範模式：資料只存在這台裝置，不會與其他人共用。'}));
+  if(mode==='shared'&&!canWrite)n.appendChild(h('div',{class:'note soft',text:'你目前只有檢視權限，無法登記或修改。請管理者將你的權限調整為 Contributor。'}));
+  if(dbErr)n.appendChild(h('div',{class:'note err',text:dbErr}));
+}
+function renderAll(force){renderNotice();if(force||!isFormMode())renderCars()}
+function saveCsv(name,rows){
+  if(!dl){toast('此檢視環境無法下載檔案');return}
+  var csv='﻿'+rows.map(function(r){return r.map(function(c){return '"'+String(c==null?'':c).replace(/"/g,'""')+'"'}).join(',')}).join('\r\n');
+  dl.save({filename:name,data:csv}).catch(function(e){if(!e||e.code!=='declined')toast('無法下載檔案')});
+}
+
+/* ================= vehicles (follows the paper form 車輛駕駛記錄表) ================= */
+var cv={mode:'list'},sheetPlate='',TRIP_NORMAL_KM=10;
+function isFormMode(){return cv.mode==='trip'}
+function vehicle(p){return data.vehicles.find(function(v){return v.id===p})}
+function logKey(l){return (l.date||'')+' '+(l.outTime||'')}
+function logsOf(p){return data.vehicleLogs.filter(function(l){return l.plate===p}).sort(function(a,b){var x=logKey(a),y=logKey(b);return x<y?1:x>y?-1:(b.createdAt||0)-(a.createdAt||0)})}
+function openLog(p){return logsOf(p).find(function(l){return l.status==='out'})||null}
+function lastMileage(p){
+  var l=logsOf(p).find(function(x){return x.status==='returned'&&x.retMileage!=null});
+  if(l)return l.retMileage;var v=vehicle(p);return v&&v.lastMileage!=null?v.lastMileage:'';
+}
+function abnormal(l){return l.look==='bad'||l.cond==='bad'}
+function mdOf(s){if(!s)return '';var d=pd(s);return (d.getMonth()+1)+'/'+d.getDate()}
+function goto(m,p){cv={mode:m,plate:p};renderCars();window.scrollTo(0,0)}
+function gotoTrip(p,o){cv=Object.assign({mode:'trip',plate:p},o||{});renderCars();window.scrollTo(0,0)}
+function fromHash(){
+  var m=/^#?car-(.+)$/.exec(location.hash||'');
+  if(m){cv={mode:'detail',plate:decodeURIComponent(m[1])};setTab('cars')}
+}
+window.addEventListener('hashchange',fromHash);
+function statusPill(p){return null}
+function lastBox(p){
+  var l=logsOf(p).find(function(x){return x.status==='returned'&&x.retMileage!=null}),v=vehicle(p),km=lastMileage(p);
+  var sub=l?mdOf(l.date)+' '+(l.retTime||'')+'　'+l.unit+' '+l.driver+'　'+l.route:(km!==''?'建檔里程，尚無行車紀錄':'尚無里程資料');
+  return h('div',{class:'lastbox'},h('div',{class:'lb-k',text:'上次返回里程'}),h('div',{class:'lb-v mono',text:km===''?'—':km+' 公里'}),h('div',{class:'lb-s',text:sub}));
+}
+function markText(x,note){return x==='bad'?h('span',{class:'mk bad',text:'✕',title:note||'異常'}):h('span',{class:'mk ok',text:'✓',title:'正常'})}
+function vState(p){
+  var l=logsOf(p)[0],reps=data.vehicleRepairs.filter(function(r){return r.plate===p}),res={look:{bad:false},cond:{bad:false},note:''};
+  if(!l)return res;
+  var at=l.updatedAt||l.createdAt||0;
+  ['look','cond'].forEach(function(k){
+    if(l[k]!=='bad')return;
+    var fixed=reps.some(function(r){return (r.items||[]).indexOf(k)>=0&&(r.at||0)>=at});
+    res[k]={bad:!fixed};
+  });
+  if(res.look.bad||res.cond.bad)res.note=l.note||'';
+  return res;
+}
+function stateLine(p){var s=vState(p);return h('span',null,'外觀 ',markText(s.look.bad?'bad':'ok'),'　車況 ',markText(s.cond.bad?'bad':'ok'))}
+function repairPanel(v){
+  var st=vState(v.id),reps=data.vehicleRepairs.filter(function(r){return r.plate===v.id}).sort(function(a,b){return (b.at||0)-(a.at||0)}).slice(0,3);
+  if(!st.look.bad&&!st.cond.bad&&!reps.length)return null;
+  var box=h('div',{class:'panel formcard'});
+  if(st.look.bad||st.cond.bad){
+    box.appendChild(h('h2',{style:'font-size:16px',text:'異常狀況（待維修）'}));
+    box.appendChild(h('div',{text:(st.look.bad?'外觀 ✕　':'')+(st.cond.bad?'車況 ✕　':'')+(st.note?'說明：'+st.note:'')}));
+    if(isAdmin&&canWrite){
+      var cL=h('input',{type:'checkbox',checked:st.look.bad,disabled:!st.look.bad}),cC=h('input',{type:'checkbox',checked:st.cond.bad,disabled:!st.cond.bad});
+      var rn=h('input',{type:'text',id:'repNote',placeholder:'修復說明（選填，例如：已更換後保險桿）'});
+      box.appendChild(h('div',{class:'inline'},h('label',null,cL,'外觀已修復'),h('label',null,cC,'車況已修復')));
+      box.appendChild(rn);
+      box.appendChild(h('div',{class:'actions'},h('button',{type:'button',class:'primary',text:'標記已修復',onclick:async function(){
+        var items=[];if(cL.checked&&!cL.disabled)items.push('look');if(cC.checked&&!cC.disabled)items.push('cond');
+        if(!items.length){toast('請勾選已修復的項目');return}
+        try{await put('vehicleRepairs',{id:'R'+Date.now(),plate:v.id,items:items,note:rn.value.trim(),at:Date.now()});toast('已標記修復，恢復為 ✓')}catch(e){writeErr(e)}
+      }})));
+    }else box.appendChild(h('p',{class:'empty',style:'margin:0',text:'維修完成後，請管理者在這裡標記已修復，外觀、車況就會恢復為 ✓。'}));
+  }
+  if(reps.length){
+    box.appendChild(h('h3',{style:'font-size:13px;color:var(--mute);margin:6px 0 0',text:'修復紀錄'}));
+    reps.forEach(function(r){
+      var d=new Date(r.at||0);
+      box.appendChild(h('div',{class:'empty',text:(d.getMonth()+1)+'/'+d.getDate()+'　'+(r.items||[]).map(function(k){return k==='look'?'外觀':'車況'}).join('、')+'已修復'+(r.note?'：'+r.note:'')}));
+    });
+  }
+  return box;
+}
+function mem(k){try{return localStorage.getItem('rc.'+k)||''}catch(e){return ''}}
+function remember(k,v){try{localStorage.setItem('rc.'+k,v)}catch(e){}}
+function roster(){var d=data.roster.find(function(x){return x.id==='current'});return (d&&d.rows)||[]}
+function rosterUnits(){var s={},o=[];roster().forEach(function(r){if(r.unit&&!s[r.unit]){s[r.unit]=1;o.push(r.unit)}});return o}
+function rosterNames(u){return roster().filter(function(r){return r.unit===u&&r.name}).map(function(r){return r.name})}
+function combo(id,otherLabel,ph){
+  var sel=h('select',{id:id}),txt=h('input',{type:'text',id:id+'T',placeholder:ph||'手動輸入',hidden:true,style:'margin-top:6px'});
+  function fill(opts,cur){
+    sel.textContent='';sel.appendChild(h('option',{value:'',text:'請選擇'}));
+    opts.forEach(function(o){sel.appendChild(h('option',{value:o,text:o}))});
+    sel.appendChild(h('option',{value:'__o',text:otherLabel||'其他（手動輸入）'}));
+    txt.value='';
+    if(cur&&opts.indexOf(cur)>=0)sel.value=cur;
+    else if(cur){sel.value='__o';txt.value=cur}
+    else sel.value=opts.length?'':'__o';
+    txt.hidden=sel.value!=='__o';
+  }
+  sel.addEventListener('change',function(){txt.hidden=sel.value!=='__o';if(!txt.hidden)txt.focus()});
+  return {node:h('div',null,sel,txt),sel:sel,fill:fill,get:function(){return sel.value==='__o'?txt.value.trim():sel.value}};
+}
+function personFields(initUnit,initName){
+  var units=rosterUnits();
+  if(!units.length){
+    var u=h('input',{type:'text',id:'oUnit',value:initUnit,list:'dlUnit',autocomplete:'off'}),d=h('input',{type:'text',id:'oDriver',value:initName,list:'dlDrv',autocomplete:'off'});
+    return {unit:{node:u,get value(){return u.value}},driver:{node:d,get value(){return d.value}}};
+  }
+  var uc=combo('oUnit','其他單位（自行輸入）','請輸入單位代碼'),dc=combo('oDriver','其他（自行輸入姓名）','請輸入姓名');
+  uc.fill(units,initUnit);dc.fill(rosterNames(uc.get()),initName);
+  uc.sel.addEventListener('change',function(){dc.fill(rosterNames(uc.get()),'')});
+  return {unit:{node:uc.node,get value(){return uc.get()}},driver:{node:dc.node,get value(){return dc.get()}}};
+}
+async function readSheets(file){
+  var buf=await file.arrayBuffer(),wb;
+  if(/\.csv$/i.test(file.name)){
+    var text;try{text=new TextDecoder('utf-8',{fatal:true}).decode(buf)}catch(e){text=new TextDecoder('big5').decode(buf)}
+    wb=XLSX.read(text,{type:'string'});
+  }else wb=XLSX.read(buf,{type:'array'});
+  return wb.SheetNames.map(function(n){return XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:false,defval:''})});
+}
+function parseRoster(rows){
+  var ui=-1,ni=-1,start=0,i;
+  for(i=0;i<Math.min(rows.length,10);i++){
+    var r=rows[i].map(String);
+    var a=r.findIndex(function(c){return /單位|部門/.test(c)}),b=r.findIndex(function(c){return /姓名|駕駛|使用人|人員/.test(c)});
+    if(a>=0&&b>=0&&a!==b){ui=a;ni=b;start=i+1;break}
+  }
+  if(ui<0){ui=0;ni=1;start=0}
+  var out=[],seen={},lastU='';
+  for(var j=start;j<rows.length;j++){
+    var uu=String(rows[j][ui]==null?'':rows[j][ui]).trim(),nn=String(rows[j][ni]==null?'':rows[j][ni]).trim();
+    if(!uu&&!nn){if(out.length)break;continue}
+    if(uu)lastU=uu;else uu=lastU;
+    var k=uu+'|'+nn;if(seen[k])continue;seen[k]=1;out.push({unit:uu,name:nn});
+  }
+  return out;
+}
+function importRoster(){
+  var f=h('input',{type:'file',accept:'.xlsx,.xls,.csv',hidden:true});
+  f.onchange=async function(){
+    var file=f.files[0];if(!file)return;
+    try{
+      var all=[],seen={};
+      (await readSheets(file)).forEach(function(rows){parseRoster(rows).forEach(function(x){var k=x.unit+'|'+x.name;if(!seen[k]){seen[k]=1;all.push(x)}})});
+      if(!all.length){toast('找不到單位與姓名資料，請確認欄位標題含「單位」與「姓名」');return}
+      if(all.length>3000){toast('清單超過 3000 筆，請拆分後再匯入');return}
+      var us={};all.forEach(function(x){us[x.unit]=1});
+      var r=await ask('從「'+file.name+'」讀到 '+Object.keys(us).length+' 個單位、'+all.filter(function(x){return x.name}).length+' 位使用人。匯入後會取代目前的清單，確定嗎？',[['取消',0],['確定匯入',1,'primary']]);
+      if(!r)return;
+      await put('roster',{id:'current',rows:all,at:Date.now(),file:file.name});toast('已匯入清單');
+    }catch(e){if(e&&e.code)writeErr(e);else toast('這個檔案無法讀取')}
+  };
+  document.body.appendChild(f);f.click();setTimeout(function(){f.remove()},60000);
+}
+function rosterPanel(){
+  var rows=roster(),units=rosterUnits();
+  var d=h('details',{class:'panel',style:'padding:10px 14px;margin-bottom:12px'});
+  d.appendChild(h('summary',{style:'cursor:pointer;font-weight:700',text:units.length?'單位及使用人清單：'+units.length+' 個單位、'+rows.filter(function(r){return r.name}).length+' 人':'單位及使用人清單：尚未匯入'}));
+  if(!units.length){d.appendChild(h('p',{class:'empty',text:isAdmin?'按「匯入單位及使用人」上傳 Excel 或 CSV（欄位：單位、姓名）。匯入後，出發登記會改成下拉選單。':'尚未匯入，出發登記目前為自行輸入。'}));return d}
+  units.forEach(function(un){d.appendChild(h('div',{class:'empty',style:'margin-top:6px'},h('b',{text:un+'　'}),rosterNames(un).join('、')))});
+  return d;
+}
+var placesOpen=false;
+function placesDoc(){return data.places.find(function(x){return x.id==='current'})||{origin:'W5',rows:[]}}
+function savePlaces(origin,rows){return put('places',{id:'current',origin:origin||'W5',rows:rows,at:Date.now()})}
+function routeField(initRoute){
+  var pl=placesDoc(),rows=pl.rows||[],origin=pl.origin||'W5';
+  if(!rows.length){
+    var r=h('input',{type:'text',id:'oRoute',value:initRoute||mem('route')||origin+' ↔ ',list:'dlRoute',autocomplete:'off'});
+    return {node:r,dest:function(){return ''},get value(){var v=r.value.trim();return v===origin+' ↔'?'':v}};
+  }
+  var c=combo('oRoute','其他地點（自行輸入）','請輸入地點');c.fill(rows,initRoute?String(initRoute).split('↔').slice(1).join('↔').trim():mem('dest'));
+  return {node:h('div',{class:'routebox'},h('span',{class:'mono',text:origin+' ↔'}),c.node),dest:c.get,get value(){var d=c.get();return d?origin+' ↔ '+d:''}};
+}
+function placesPanel(){
+  var pl=placesDoc(),rows=(pl.rows||[]).slice(),origin=pl.origin||'W5',can=isAdmin&&canWrite;
+  var d=h('details',{class:'panel',style:'padding:10px 14px;margin-bottom:12px'});
+  d.open=placesOpen;d.addEventListener('toggle',function(){placesOpen=d.open});
+  d.appendChild(h('summary',{style:'cursor:pointer;font-weight:700',text:'往返地點清單：'+(rows.length?rows.length+' 個地點（起點 '+origin+'）':'尚未設定')}));
+  if(!rows.length)d.appendChild(h('p',{class:'empty',text:can?'新增常用地點後，出發登記的往返地點會變成下拉選單。':'尚未設定，出發登記目前為自行輸入。'}));
+  var list=h('div',{class:'btnrow',style:'margin:8px 0'});
+  rows.forEach(function(x){
+    list.appendChild(h('span',{class:'pill free',style:'display:inline-flex;gap:6px;align-items:center;background:var(--surface2);color:var(--ink);border:1px solid var(--line)'},x,
+      can?h('button',{type:'button',class:'ghost',title:'刪除 '+x,'aria-label':'刪除 '+x,style:'min-height:22px;padding:0 4px;color:var(--bad)',text:'✕',onclick:async function(){
+        try{await savePlaces(origin,rows.filter(function(y){return y!==x}))}catch(e){writeErr(e)}}}):null));
+  });
+  d.appendChild(list);
+  if(can){
+    var add=h('input',{type:'text',id:'plNew',placeholder:'新增地點，可用頓號或逗號一次輸入多個'}),org=h('input',{type:'text',id:'plOrigin',value:origin,style:'max-width:120px'});
+    d.appendChild(h('div',{class:'btnrow'},h('div',{style:'flex:1;min-width:200px'},add),h('button',{type:'button',class:'primary',text:'新增',onclick:async function(){
+      var vs=add.value.split(/[、,，\n]/).map(function(s){return s.trim()}).filter(Boolean),next=rows.slice();
+      vs.forEach(function(v){if(next.indexOf(v)<0)next.push(v)});
+      if(next.length===rows.length){toast('請輸入新的地點');return}
+      try{await savePlaces(origin,next);toast('已新增')}catch(e){writeErr(e)}}})));
+    d.appendChild(h('div',{class:'btnrow',style:'margin-top:8px;align-items:center'},h('span',{class:'empty',text:'起點（顯示在「↔」左邊）'}),org,h('button',{type:'button',text:'儲存起點',onclick:async function(){
+      var o=org.value.trim();if(!o){toast('請輸入起點');return}
+      try{await savePlaces(o,rows);toast('已儲存起點')}catch(e){writeErr(e)}}})));
+  }
+  return d;
+}
+function datalist(id,key){
+  var seen={};data.vehicleLogs.forEach(function(l){if(l[key])seen[l[key]]=1});
+  return h('datalist',{id:id},Object.keys(seen).map(function(x){return h('option',{value:x})}));
+}
+function seg2(init,onchange,locked){
+  var val=init||'ok',okb=h('button',{type:'button',class:'okb',text:'✓ 正常'}),bdb=h('button',{type:'button',class:'badb',text:'✕ 異常'});
+  function paint(){okb.setAttribute('aria-pressed',String(val==='ok'));bdb.setAttribute('aria-pressed',String(val==='bad'))}
+  okb.onclick=function(){val='ok';paint();if(onchange)onchange()};
+  bdb.onclick=function(){val='bad';paint();if(onchange)onchange()};
+  if(locked){okb.disabled=true;okb.title='已登記異常，需維修後由管理者標記修復'}
+  paint();
+  return {node:h('div',{class:'seg'},okb,bdb),get:function(){return val}};
+}
+
+/* the paper sheet: one block per trip, two lines (出發 / 返回) */
+function logSheet(v,limit){
+  var logs=logsOf(v.id).slice(0,limit||30),tb=h('tbody'),adm=isAdmin&&canWrite;
+  if(!logs.length)tb.appendChild(h('tr',null,h('td',{colspan:8+(adm?1:0),class:'l',style:'text-align:center;color:var(--mute)',text:'尚無紀錄。掃描車上的 QR Code 即可登記。'})));
+  logs.forEach(function(l){
+    var ret=l.status==='returned';
+    var retT=ret?((l.retDate&&l.retDate!==l.date?mdOf(l.retDate)+' ':'')+l.retTime):'—';
+    tb.appendChild(h('tr',null,
+      h('td',{rowspan:2},mdOf(l.date),l.backfill?h('span',{class:'bftag',title:'補登：'+(l.backfillReason||''),text:'補'}):null,l.editedAt?h('span',{class:'bftag ed',title:'已修改：'+(l.editedReason||''),text:'改'}):null),h('td',{rowspan:2,text:l.unit}),h('td',{rowspan:2,text:l.driver}),h('td',{rowspan:2,class:'l',text:l.route}),
+      h('td',{class:'mono',text:l.outMileage+' 公里'}),h('td',{class:'mono',text:l.outTime}),
+      h('td',{rowspan:2},markText(l.look,l.note)),h('td',{rowspan:2},markText(l.cond,l.note)),adm?h('td',{rowspan:2},h('button',{type:'button',class:'ghost',style:'min-height:28px;padding:0 8px',text:'編輯',onclick:function(){gotoTrip(v.id,{editId:l.id})}})):null));
+    tb.appendChild(h('tr',null,
+      h('td',{class:'mono',text:ret?l.retMileage+' 公里':'使用中'}),h('td',{class:'mono',text:retT})));
+  });
+  var th=function(a,b){return h('th',null,a,b?h('br'):null,b||null)};
+  return h('div',{class:'panel'},
+    h('div',{class:'sheethead'},h('div',{class:'sheettitle',text:'車輛駕駛記錄表'}),h('div',{class:'mono',style:'font-weight:700',text:'車號：'+v.plate})),
+    h('div',{class:'tablewrap'},h('table',{class:'sheet'},
+      h('thead',null,h('tr',null,th('日期'),th('單位'),th('駕駛人'),th('往返地點'),th('出發里程數','返回里程數'),th('出發時間','返回時間'),th('外觀'),th('車況*'),adm?th(''):null)),tb)),
+    h('div',{class:'sheetfoot',text:'備註：車況檢查包含儀表（油表、水溫及儀表各項燈號）、煞車、喇叭、燈號等。外觀、車況欄：✓ 表示正常，✕ 表示有異常。'}));
+}
+
+function renderCars(){
+  var root=$('carMain');root.textContent='';
+  if(cv.mode==='list')root.appendChild(carList());
+  else{
+    var v=vehicle(cv.plate);
+    if(!v){root.appendChild(h('div',{class:'vpage'},h('div',{class:'panel formcard'},
+      h('h2',{text:'找不到車輛 '+cv.plate}),h('p',{class:'empty',text:data.vehicles.length?'請確認 QR Code 是否正確，或聯絡管理者。':'車輛資料載入中，或尚未建立。'}),
+      h('button',{type:'button',text:'回車輛清單',onclick:function(){cv={mode:'list'};renderCars()}}))));return}
+    if(cv.mode==='detail')root.appendChild(carDetail(v));
+    else if(cv.mode==='trip')root.appendChild(tripForm(v));
+  }
+}
+function carList(){
+  var wrap=h('div');
+  var addBox=h('div',{class:'panel formcard',hidden:true,style:'margin-bottom:12px'});
+  wrap.appendChild(h('div',{class:'sec-title'},h('h2',{text:'車輛'}),
+    h('div',{class:'btnrow'},
+      isAdmin?h('button',{type:'button',text:'＋ 新增車輛',disabled:!canWrite,onclick:function(){addBox.hidden=!addBox.hidden}}):null,
+      h('button',{type:'button',text:'匯出紙本格式（可列印）',onclick:exportPaper}),h('button',{type:'button',text:'匯出駕駛記錄（CSV）',onclick:exportCars}),isAdmin&&window.XLSX?h('button',{type:'button',text:'匯入單位及使用人',disabled:!canWrite,onclick:importRoster}):null)));
+  var plate=h('input',{type:'text',id:'nvPlate',placeholder:'例如 ABC-1234',autocapitalize:'characters'});
+  var name=h('input',{type:'text',id:'nvName',placeholder:'車輛說明（選填）'});
+  var km=h('input',{type:'number',id:'nvKm',inputmode:'numeric',placeholder:'目前里程數'});
+  addBox.appendChild(h('div',{class:'two'},h('label',{class:'f'},h('span',{text:'車號'}),plate),h('label',{class:'f'},h('span',{text:'車輛說明'}),name)));
+  addBox.appendChild(h('label',{class:'f'},h('span',{text:'目前里程數（公里，選填）'}),km));
+  addBox.appendChild(h('div',{class:'actions'},h('button',{type:'button',class:'primary',text:'新增',onclick:async function(){
+    var p=plate.value.trim().toUpperCase();
+    if(!/^[A-Z0-9][A-Z0-9\-]{2,15}$/.test(p)){toast('車號只能使用英數字與連字號');return}
+    if(vehicle(p)){toast('這台車已存在');return}
+    try{await put('vehicles',{id:p,plate:p,name:name.value.trim(),lastMileage:km.value===''?null:+km.value});toast('已新增 '+p);addBox.hidden=true}catch(e){writeErr(e)}
+  }})));
+  wrap.appendChild(addBox);wrap.appendChild(rosterPanel());wrap.appendChild(placesPanel());
+  var grid=h('div',{class:'cars'});
+  if(!data.vehicles.length)grid.appendChild(h('div',{class:'panel formcard'},h('h2',{text:'尚未建立車輛'}),h('p',{class:'empty',text:isAdmin?'按「新增車輛」輸入車號，系統就會產生可貼在車上的 QR Code。':'請管理者先新增車輛。'})));
+  var vs=data.vehicles.slice().sort(function(a,b){return a.id<b.id?-1:1});
+  vs.forEach(function(v){
+    var kv=h('dl',{class:'kv'}),lt=logsOf(v.id)[0];
+    kv.appendChild(h('dt',{text:'上次返回里程'}));kv.appendChild(h('dd',{class:'mono',text:lastMileage(v.id)===''?'—':lastMileage(v.id)+' 公里'}));
+    kv.appendChild(h('dt',{text:'最近一趟'}));kv.appendChild(h('dd',{text:lt?mdOf(lt.date)+'　'+lt.unit+' '+lt.driver:'尚無紀錄'}));
+    kv.appendChild(h('dt',{text:'狀況'}));kv.appendChild(h('dd',null,stateLine(v.id)));
+    grid.appendChild(h('div',{class:'panel vcard'},
+      h('div',{class:'vrow'},h('div',null,h('div',{class:'plate',text:v.plate}),h('div',{class:'empty',text:v.name||''})),statusPill(v.id)),
+      kv,
+      h('div',{class:'btnrow'},
+        h('button',{type:'button',class:'primary',text:'返回登記',disabled:!canWrite,onclick:function(){goto('trip',v.id)}}),
+        h('button',{type:'button',text:'詳細',onclick:function(){goto('detail',v.id)}}),
+        h('button',{type:'button',text:'QR Code',onclick:function(){openQR(v)}}))));
+  });
+  wrap.appendChild(grid);
+  if(vs.length){
+    if(!sheetPlate||!vehicle(sheetPlate))sheetPlate=vs[0].id;
+    var chips=h('div',{class:'btnrow'});
+    vs.forEach(function(v){chips.appendChild(h('button',{type:'button',class:'chip','aria-pressed':String(v.id===sheetPlate),text:v.plate,onclick:function(){sheetPlate=v.id;renderCars()}}))});
+    wrap.appendChild(h('div',{class:'sec-title'},h('h2',{text:'車輛駕駛記錄表'}),chips));
+    wrap.appendChild(logSheet(vehicle(sheetPlate),40));
+    wrap.appendChild(deletedPanel()||document.createComment(''));
+  }
+  return wrap;
+}
+var deletedOpen=false;
+function deletedPanel(){
+  if(!isAdmin)return null;
+  var rows=data.vehicleDeleted.slice().sort(function(a,b){return (b.at||0)-(a.at||0)});
+  var d=h('details',{class:'panel',style:'padding:10px 14px;margin-top:12px'});
+  d.open=deletedOpen;d.addEventListener('toggle',function(){deletedOpen=d.open});
+  d.appendChild(h('summary',{style:'cursor:pointer;font-weight:700',text:'已刪除的紀錄：'+rows.length+' 筆'}));
+  if(!rows.length){d.appendChild(h('p',{class:'empty',text:'目前沒有被刪除的紀錄。'}));return d}
+  var spans={};
+  rows.forEach(function(x){
+    var l=x.log||{},when=new Date(x.at||0);
+    var who=h('span',{text:'管理者'});(spans[x.by||'']=spans[x.by||'']||[]).push(who);
+    d.appendChild(h('div',{class:'item',style:'--c:var(--mute);margin-top:8px'},
+      h('div',{class:'t',text:x.plate+'　'+mdOf(l.date)+'　'+(l.unit||'')+' '+(l.driver||'')+'　'+(l.route||'')}),
+      h('div',{class:'m',text:'里程 '+l.outMileage+' → '+l.retMileage+' 公里｜刪除時間 '+(when.getMonth()+1)+'/'+when.getDate()+' '+pad(when.getHours())+':'+pad(when.getMinutes())+'｜原因：'+(x.reason||'')}),
+      h('div',{class:'m'},'刪除者：',who,h('button',{type:'button',class:'ghost',style:'margin-left:12px;min-height:26px;padding:0 8px',disabled:!canWrite,text:'還原',onclick:async function(){
+        try{await put('vehicleLogs',l);await del('vehicleDeleted',x.id);toast('已還原這筆紀錄')}catch(e){writeErr(e)}
+      }}))));
+  });
+  var ids=Object.keys(spans).filter(Boolean);
+  if(user&&user.profiles&&ids.length)user.profiles(ids).then(function(ps){ids.forEach(function(id){var n=ps&&ps[id]&&ps[id].name;if(n)spans[id].forEach(function(s){s.textContent=n})})}).catch(function(){});
+  return d;
+}
+function exportCars(){
+  var rows=[['車號','日期','單位','駕駛人','往返地點','出發里程數','返回里程數','出發時間','返回時間','外觀','車況','說明','補登原因','修改原因']];
+  data.vehicleLogs.slice().sort(function(a,b){return (a.createdAt||0)-(b.createdAt||0)}).forEach(function(l){
+    var ret=l.status==='returned';
+    rows.push([l.plate,(l.date||'').replace(/-/g,'/'),l.unit,l.driver,l.route,l.outMileage,ret?l.retMileage:'',l.outTime,ret?l.retTime:'',l.look==='bad'?'✕':'✓',l.cond==='bad'?'✕':'✓',l.note||'',l.backfillReason||'',l.editedReason||'']);
+  });
+  saveCsv('車輛駕駛記錄.csv',rows);
+}
+function carDetail(v){
+  var kv=h('dl',{class:'kv'});
+  kv.appendChild(h('dt',{text:'上次返回里程'}));kv.appendChild(h('dd',{class:'mono',text:lastMileage(v.id)===''?'—':lastMileage(v.id)+' 公里'}));
+  kv.appendChild(h('dt',{text:'狀況'}));kv.appendChild(h('dd',null,stateLine(v.id)));
+  var head=h('div',{class:'panel vhead'},
+    h('div',{class:'vrow'},h('div',null,h('div',{class:'plate',text:v.plate}),h('div',{class:'empty',text:v.name||''})),statusPill(v.id)),
+    lastBox(v.id),kv,
+    h('button',{type:'button',class:'primary',style:'min-height:52px;font-size:17px',disabled:!canWrite,text:'返回登記',onclick:function(){goto('trip',v.id)}}),h('button',{type:'button',disabled:!canWrite,text:'補登一筆（忘記登記時）',onclick:function(){gotoTrip(v.id,{backfill:true})}}));
+  return h('div',{class:'vpage',style:'max-width:760px'},
+    h('div',null,h('button',{type:'button',class:'ghost',text:'← 車輛清單',onclick:function(){cv={mode:'list'};renderCars()}})),head,repairPanel(v),logSheet(v,10));
+}
+function field(label,input,hint,req){
+  return h('label',{class:'f'},h('span',null,label,req?' ':null,req?h('em',{text:'*'}):null),input,hint?h('small',{text:hint}):null);
+}
+function neighbors(plate,date,outTime,excludeId){
+  var key=date+' '+outTime,prev=null,next=null;
+  data.vehicleLogs.forEach(function(l){
+    if(l.plate!==plate||l.id===excludeId||l.status!=='returned')return;
+    var k=logKey(l);
+    if(k<key){if(!prev||k>logKey(prev))prev=l}else{if(!next||k<logKey(next))next=l}
+  });
+  return {prev:prev,next:next};
+}
+function tripForm(v){
+  var rec=cv.editId?data.vehicleLogs.find(function(x){return x.id===cv.editId}):null;
+  var mode=cv.editId?'edit':(cv.backfill?'back':'new');
+  if(mode==='edit'&&!rec)return h('div',{class:'vpage'},h('div',{class:'panel formcard'},h('h2',{text:'找不到這筆紀錄'}),h('button',{type:'button',text:'回車輛頁面',onclick:function(){goto('detail',v.id)}})));
+  if(mode==='edit'&&!(isAdmin&&canWrite))return h('div',{class:'vpage'},h('div',{class:'panel formcard'},h('h2',{text:'只有管理者可以修改紀錄'}),h('button',{type:'button',text:'回車輛頁面',onclick:function(){goto('detail',v.id)}})));
+  var st=vState(v.id),last=lastMileage(v.id),lock=mode==='new';
+  var date=h('input',{type:'date',id:'tDate',value:rec?rec.date:ds(new Date())});
+  var pf=personFields(rec?rec.unit:mem('unit'),rec?rec.driver:mem('driver')),unit=pf.unit,driver=pf.driver;
+  var route=routeField(rec?rec.route:null);
+  var kmOut=h('input',{type:'number',id:'tKmOut',inputmode:'numeric',value:rec?rec.outMileage:(mode==='back'?'':last)});
+  var kmRet=h('input',{type:'number',id:'tKmRet',inputmode:'numeric',placeholder:'返回時里程表',value:rec?rec.retMileage:''});
+  var tOut=h('input',{type:'time',id:'tOut',value:rec?rec.outTime:''});
+  var tRet=h('input',{type:'time',id:'tRet',value:rec?rec.retTime:(mode==='back'?'':nowTime())});
+  var note=h('textarea',{id:'tNote',placeholder:'請說明異常情形',value:rec?(rec.note||''):(lock?st.note:'')});
+  var noteWrap=h('label',{class:'f',hidden:true},h('span',null,'說明 ',h('small',{style:'display:inline;font-weight:400',text:'（車況 ✕ 異常時必填）'})),note);
+  var look=seg2(rec?rec.look:(lock&&st.look.bad?'bad':'ok'),upd,lock&&st.look.bad),cond=seg2(rec?rec.cond:(lock&&st.cond.bad?'bad':'ok'),upd,lock&&st.cond.bad);upd();
+  function upd(){noteWrap.hidden=!(look.get()==='bad'||cond.get()==='bad')}
+  var why=mode==='new'?null:h('input',{type:'text',id:'tWhy',value:mode==='back'?'忘記登記':'',placeholder:mode==='back'?'例如：忘記登記':'例如：里程填錯，已更正'});
+  var err=h('div'),mileMsg=h('div',{style:'display:grid;gap:6px'});
+  function mileHint(){
+    mileMsg.textContent='';
+    var o=kmOut.value,r=kmRet.value,msgs=[];
+    if(mode==='new'&&last!==''&&o!==''){
+      var d=+o-(+last),lenDiff=String(Math.abs(Math.round(+o))).length!==String(Math.abs(Math.round(+last))).length;
+      if(d===0)msgs.push(['ok','出發里程與上次返回里程（'+last+'）相符。']);
+      else if(d>0)msgs.push(['soft','比上次返回里程（'+last+'）多 '+d+' 公里：中間可能有一趟沒登記，請對照儀表板再確認。'+(lenDiff?'位數也和上次不同，請檢查是否多打了數字。':'')]);
+      else msgs.push(['soft','比上次返回里程（'+last+'）少 '+(-d)+' 公里：可能輸入錯誤，請再看一次儀表板。'+(lenDiff?'位數也和上次不同，請檢查是否漏打了數字。':'')]);
+    }
+    if(o!==''&&r!==''){
+      var dist=+r-(+o);
+      if(dist<0)msgs.push(['err','返回里程不可小於出發里程，請再看一次儀表板。']);
+      else if(dist===0)msgs.push(['soft','返回里程與出發里程相同（行駛 0 公里），請確認。']);
+      else if(dist>TRIP_NORMAL_KM)msgs.push(['soft','本趟行駛 '+dist+' 公里，超過廠區內一般的 '+TRIP_NORMAL_KM+' 公里，請確認儀表板上的數字。']);
+      else msgs.push(['ok','本趟行駛 '+dist+' 公里。']);
+    }
+    msgs.forEach(function(m){mileMsg.appendChild(h('div',{class:'warn '+m[0],text:m[1]}))});
+  }
+  kmOut.addEventListener('input',mileHint);kmRet.addEventListener('input',mileHint);mileHint();
+  var submit=h('button',{type:'button',class:'primary',text:mode==='edit'?'儲存修改':'送出登記',disabled:!canWrite,onclick:async function(){
+    err.textContent='';var p=[];
+    if(!unit.value.trim())p.push('請填寫單位');
+    if(!driver.value.trim())p.push('請填寫駕駛人');
+    if(!route.value.trim())p.push('請填寫往返地點');
+    if(!date.value)p.push('請填寫日期');
+    if(!tOut.value||!tRet.value)p.push('請填寫出發時間與返回時間');
+    else if(tRet.value<tOut.value)p.push('返回時間不可早於出發時間（跨日用車請分成兩筆登記）');
+    if(kmOut.value===''||+kmOut.value<0)p.push('請填寫出發里程數');
+    if(kmRet.value==='')p.push('請填寫返回里程數');
+    else if(kmOut.value!==''&&+kmRet.value<+kmOut.value)p.push('返回里程數不可小於出發里程數');
+    if(cond.get()==='bad'&&!note.value.trim())p.push('車況為「✕ 異常」，請填寫說明');
+    if(why&&!why.value.trim())p.push(mode==='edit'?'請填寫修改原因':'請填寫補登原因');
+    if(p.length){err.appendChild(h('div',{class:'warn err'},p.map(function(x){return h('div',{text:'・'+x})})));return}
+    var msg=null;
+    if(mode==='new'){
+      if(last!==''&&+kmOut.value!==+last){
+        var diff=+kmOut.value-(+last);
+        msg=diff<0?'出發里程數（'+kmOut.value+'）低於上次返回里程數（'+last+'），確定無誤？':'出發里程數（'+kmOut.value+'）比上次返回里程數（'+last+'）多 '+diff+' 公里，可能漏登了一趟。仍要送出嗎？';
+      }
+    }else{
+      var nb=neighbors(v.id,date.value,tOut.value,rec?rec.id:null),bits=[];
+      if(nb.prev&&+kmOut.value<+nb.prev.retMileage)bits.push('出發里程數低於前一趟（'+mdOf(nb.prev.date)+'）的返回里程數 '+nb.prev.retMileage);
+      if(nb.next&&+kmRet.value>+nb.next.outMileage)bits.push('返回里程數高於下一趟（'+mdOf(nb.next.date)+'）的出發里程數 '+nb.next.outMileage);
+      if(bits.length)msg='里程與前後紀錄不連續：'+bits.join('；')+'。仍要送出嗎？';
+    }
+    if(msg){var r=await ask(msg,[['回去修改',0],['確定送出',1,'primary']]);if(!r)return}
+    var tripKm=+kmRet.value-+kmOut.value;
+    if(mode!=='edit'&&tripKm>TRIP_NORMAL_KM){
+      var r2=await ask('本趟行駛 '+tripKm+' 公里，超過廠區內一般的 '+TRIP_NORMAL_KM+' 公里。請對照儀表板確認：出發 '+kmOut.value+'、返回 '+kmRet.value+' 公里，是否無誤？',[['回去修改',0],['確認無誤，送出',1,'primary']]);
+      if(!r2)return;
+    }
+    submit.disabled=true;
+    try{
+      var now=Date.now();
+      var base={plate:v.id,status:'returned',date:date.value,unit:unit.value.trim(),driver:driver.value.trim(),route:route.value.trim(),
+        outMileage:+kmOut.value,outTime:tOut.value,retMileage:+kmRet.value,retTime:tRet.value,retDate:date.value,look:look.get(),cond:cond.get(),note:note.value.trim()};
+      if(mode==='edit')await put('vehicleLogs',Object.assign({},rec,base,{editedAt:now,editedReason:why.value.trim(),updatedAt:now}));
+      else{
+        var o=Object.assign({id:'L'+now,createdAt:now,updatedAt:now},base);
+        if(mode==='back'){o.backfill=true;o.backfillReason=why.value.trim();o.backfillAt=now}
+        await put('vehicleLogs',o);
+      }
+      remember('unit',base.unit);remember('driver',base.driver);if(mode==='new'){remember('route',base.route);remember('dest',route.dest())}
+      toast(mode==='edit'?'已儲存修改':'已登記，行駛 '+(base.retMileage-base.outMileage)+' 公里');goto('detail',v.id);
+    }catch(e){writeErr(e);submit.disabled=false}
+  }});
+  var delBtn=mode==='edit'?h('button',{type:'button',class:'danger',text:'刪除這筆',onclick:async function(){
+    if(!why.value.trim()){err.textContent='';err.appendChild(h('div',{class:'warn err',text:'刪除前請先在「修改原因」欄填寫刪除原因。'}));why.focus();return}
+    var r=await ask('確定刪除這筆紀錄？（'+mdOf(rec.date)+'　'+rec.unit+' '+rec.driver+'，'+rec.outMileage+' → '+rec.retMileage+' 公里）系統會先保留一份刪除紀錄，管理者可在車輛頁的「已刪除的紀錄」還原。',[['取消',0],['刪除',1,'danger']]);
+    if(!r)return;
+    try{
+      var by=null;try{if(user)by=await user.id()}catch(e){}
+      await put('vehicleDeleted',{id:'D'+Date.now(),plate:v.id,log:rec,at:Date.now(),by:by,reason:why.value.trim()});
+      await del('vehicleLogs',rec.id);toast('已刪除，並保留刪除紀錄');goto('detail',v.id);
+    }catch(e){writeErr(e)}
+  }}):null;
+  var title=mode==='edit'?'修改紀錄':mode==='back'?'補登一筆':'返回登記';
+  var sub=mode==='edit'?'管理者修改紀錄，請填寫修改原因；若要刪除，原因欄請填刪除原因，系統會保留一份刪除紀錄。':mode==='back'?'補填過去忘記登記的行程，請依實際日期與里程表填寫。':'用完車後，一次填寫這趟的出發與返回資料。';
+  return h('div',{class:'vpage'},
+    h('div',null,h('button',{type:'button',class:'ghost',text:'← 取消',onclick:function(){goto('detail',v.id)}})),
+    h('div',{class:'panel formcard'},
+      h('div',{class:'vrow'},h('h2',{text:title}),h('span',{class:'mono',style:'font-weight:700;font-size:18px',text:v.plate})),
+      h('p',{class:'empty',style:'margin:0',text:sub}),mode==='new'?lastBox(v.id):null,
+      field('日期',date,null,true),
+      h('div',{class:'two'},field('單位',unit.node,'請填寫單位代碼',true),field('駕駛人',driver.node,null,true)),
+      field('往返地點',route.node,null,true),
+      h('div',{class:'two'},field('出發里程數（公里）',kmOut,mode==='new'&&last!==''?'上次返回：'+last+' 公里':null,true),field('返回里程數（公里）',kmRet,null,true)),mileMsg,
+      h('div',{class:'two'},field('出發時間',tOut,null,true),field('返回時間',tRet,null,true)),
+      h('div',{class:'chk'},h('div',null,h('span',{text:'外觀'}),h('small',{class:'empty',style:'display:block',text:lock&&st.look.bad?'已登記異常，維修完成後由管理者標記修復':'✓ 正常　✕ 有異常'})),look.node),
+      h('div',{class:'chk'},h('div',null,h('span',{text:'車況*'}),h('small',{class:'empty',style:'display:block',text:lock&&st.cond.bad?'已登記異常，維修完成後由管理者標記修復':'檢查包含儀表（油表、水溫及儀表各項燈號）、煞車、喇叭、燈號等。'})),cond.node),
+      noteWrap,
+      why?field(mode==='edit'?'修改原因':'補登原因',why,null,true):null,
+      datalist('dlUnit','unit'),datalist('dlDrv','driver'),datalist('dlRoute','route'),err),
+    h('div',{class:'submitbar'},delBtn,h('span',{style:'flex:1'}),h('button',{type:'button',text:'取消',onclick:function(){goto('detail',v.id)}}),submit));
+}
+
+/* ---- QR ---- */
+var qrPlate=null,qrObj=null;
+function qrUrl(){var b=$('qrBase').value.trim();return b?b.split('#')[0]+'#car-'+qrPlate:''}
+function drawQR(){
+  var box=$('qrbox');box.textContent='';qrObj=null;
+  var u=qrUrl();$('qrLink').textContent=u||'請先貼上本系統網址';
+  if(!u)return;
+  if(window.QRCode){qrObj=new window.QRCode(box,{text:u,width:240,height:240,correctLevel:window.QRCode.CorrectLevel.M})}
+  else box.textContent='QR 產生器載入失敗';
+}
+function openQR(v){
+  qrPlate=v.id;$('qrTitle').textContent=v.plate+' QR Code';
+  var b=setting('baseUrl');
+  if(!b&&/^https?:/.test(location.href))b=location.href.split('#')[0];
+  $('qrBase').value=b;$('qrBase').disabled=!isAdmin;$('qrSaveBase').hidden=!isAdmin;
+  drawQR();$('dlgQR').showModal();
+}
+$('qrBase').addEventListener('input',drawQR);
+$('qrClose').onclick=function(){$('dlgQR').close()};
+$('qrSaveBase').onclick=async function(){
+  try{await put('settings',{id:'app',baseUrl:$('qrBase').value.trim()});toast('已儲存網址')}catch(e){writeErr(e)}
+};
+$('qrCopy').onclick=function(){
+  var u=qrUrl();if(!u)return;
+  var done=function(){toast('已複製連結')};
+  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(u).then(done,function(){toast('請手動選取連結複製')});
+  else toast('請手動選取連結複製');
+};
+$('qrDownload').onclick=function(){
+  if(!qrObj){toast('請先貼上本系統網址');return}
+  if(!dl){toast('此檢視環境無法下載檔案');return}
+  var cv2=$('qrbox').querySelector('canvas');if(!cv2){toast('無法產生圖片');return}
+  var c=document.createElement('canvas');c.width=360;c.height=440;var g=c.getContext('2d');
+  g.fillStyle='#fff';g.fillRect(0,0,360,440);g.drawImage(cv2,60,30,240,240);
+  g.fillStyle='#111';g.textAlign='center';g.font='bold 34px monospace';g.fillText(qrPlate,180,325);
+  g.font='18px sans-serif';g.fillText('掃描登記出發／歸還',180,365);
+  c.toBlob(function(b){dl.save({filename:'QR_'+qrPlate+'.png',data:b}).catch(function(e){if(!e||e.code!=='declined')toast('無法下載檔案')})},'image/png');
+};
+
+/* ================= backup and restore (admin) ================= */
+var BK_LABEL={vehicles:'車輛',vehicleLogs:'車輛行車紀錄',vehicleRepairs:'外觀、車況修復紀錄',vehicleDeleted:'已刪除的行車紀錄',roster:'單位及使用人名單',places:'往返地點清單',settings:'系統設定'};
+var BK_ORDER=['vehicles','roster','places','settings','vehicleLogs','vehicleRepairs','vehicleDeleted'];
+var bkParsed=null;
+function bkTable(rows){
+  var tb=h('tbody');
+  rows.forEach(function(r){tb.appendChild(h('tr',null,h('td',{style:'text-align:left',text:r[0]}),h('td',{class:'mono',text:String(r[1])}),r.length>2?h('td',{class:'mono',text:String(r[2])}):null))});
+  return h('div',{class:'tablewrap'},h('table',null,tb));
+}
+function bkRefresh(){
+  var box=$('bkSummary');box.textContent='';
+  box.appendChild(h('div',{class:'empty',style:'margin-bottom:4px',text:'目前資料庫內容：'}));
+  box.appendChild(bkTable(BK_ORDER.map(function(n){return [BK_LABEL[n],data[n].length+' 筆']})));
+}
+function bkOpen(){
+  bkParsed=null;$('bkFile').value='';$('bkPreview').textContent='';$('bkProgress').textContent='';
+  $('bkRestore').disabled=true;$('bkFullWrap').hidden=true;$('bkFull').checked=false;
+  bkRefresh();$('dlgBackup').showModal();
+}
+$('btnBackup').onclick=bkOpen;
+$('bkClose').onclick=function(){$('dlgBackup').close()};
+$('bkDownload').onclick=function(){
+  if(!dl){toast('此檢視環境無法下載檔案');return}
+  var c={};NAMES.forEach(function(n){c[n]=data[n]});
+  var body=JSON.stringify({app:'eip-booking',version:1,at:new Date().toISOString(),collections:c},null,1);
+  var d=new Date(),name='借用系統備份_'+d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'.json';
+  dl.save({filename:name,data:body}).then(function(){toast('已備份 '+BK_ORDER.reduce(function(s,n){return s+data[n].length},0)+' 筆資料')},function(e){if(!e||e.code!=='declined')toast('無法下載檔案')});
+};
+$('bkFile').onchange=async function(){
+  bkParsed=null;$('bkRestore').disabled=true;$('bkFullWrap').hidden=true;$('bkPreview').textContent='';$('bkProgress').textContent='';
+  var f=this.files[0];if(!f)return;
+  var prev=$('bkPreview');
+  function fail(m){prev.appendChild(h('div',{class:'warn err',text:m}))}
+  if(f.size>20*1024*1024){fail('備份檔超過 20 MB，無法還原。');return}
+  var obj;try{obj=JSON.parse(await f.text())}catch(e){fail('這個檔案不是有效的備份檔（JSON 格式錯誤）。');return}
+  if(!obj||obj.app!=='eip-booking'||!obj.collections||typeof obj.collections!=='object'){fail('這不是本系統的備份檔。');return}
+  var ok=/^[A-Za-z0-9_\-.~:@+]{1,200}$/,cols={},skipped=0,rows=[];
+  BK_ORDER.forEach(function(n){
+    var arr=Array.isArray(obj.collections[n])?obj.collections[n]:[],good=[];
+    arr.forEach(function(x){if(x&&typeof x==='object'&&typeof x.id==='string'&&ok.test(x.id)&&JSON.stringify(x).length<250000)good.push(x);else skipped++});
+    cols[n]=good;rows.push([BK_LABEL[n],good.length+' 筆',data[n].length+' 筆']);
+  });
+  var total=BK_ORDER.reduce(function(s,n){return s+cols[n].length},0);
+  if(!total){fail('備份檔裡沒有任何資料。');return}
+  prev.appendChild(h('div',{class:'empty',text:'備份時間：'+(obj.at?new Date(obj.at).toLocaleString('zh-TW'):'未知')+'　｜　檔名：'+f.name}));
+  var tb=h('tbody');rows.forEach(function(r){tb.appendChild(h('tr',null,h('td',{style:'text-align:left',text:r[0]}),h('td',{class:'mono',text:r[1]}),h('td',{class:'mono',text:r[2]})))});
+  prev.appendChild(h('div',{class:'tablewrap'},h('table',null,h('thead',null,h('tr',null,h('th',{text:'項目'}),h('th',{text:'備份檔'}),h('th',{text:'目前'}))),tb)));
+  if(skipped)prev.appendChild(h('div',{class:'warn soft',text:'有 '+skipped+' 筆資料格式不正確，還原時會略過。'}));
+  bkParsed={cols:cols,total:total};$('bkRestore').disabled=!canWrite;$('bkFullWrap').hidden=false;
+};
+$('bkRestore').onclick=async function(){
+  if(!bkParsed||!canWrite)return;
+  var full=$('bkFull').checked,dels=[];
+  if(full)BK_ORDER.forEach(function(n){var keep={};bkParsed.cols[n].forEach(function(x){keep[x.id]=1});data[n].forEach(function(x){if(!keep[x.id])dels.push([n,x.id])})});
+  var msg='將把備份檔的 '+bkParsed.total+' 筆資料寫回資料庫，編號相同的現有資料會被覆蓋。'+(full?'同時會刪除 '+dels.length+' 筆備份檔裡沒有的現有資料（資料庫會還原成備份當時的樣子）。':'備份檔裡沒有的現有資料不會被刪除。')+'確定要還原嗎？';
+  var r=await ask(msg,[['取消',0],[full?'確定完全還原':'確定還原',1,'danger']]);
+  if(!r)return;
+  var ops=[];BK_ORDER.forEach(function(n){bkParsed.cols[n].forEach(function(x){ops.push(['set',n,x])})});
+  dels.forEach(function(d){ops.push(['del',d[0],d[1]])});
+  var prog=$('bkProgress'),btn=$('bkRestore'),done=0;btn.disabled=true;$('bkFile').disabled=true;
+  try{
+    for(var i=0;i<ops.length;i++){
+      var o=ops[i];
+      if(o[0]==='set')await put(o[1],o[2]);else await del(o[1],o[2]);
+      done++;if(done%10===0||done===ops.length)prog.textContent='處理中… '+done+' / '+ops.length;
+    }
+    prog.textContent='完成：已處理 '+done+' 筆。';toast('已完成還原');bkParsed=null;$('bkFile').value='';$('bkPreview').textContent='';$('bkFullWrap').hidden=true;bkRefresh();
+  }catch(e){
+    prog.textContent='還原中斷：已處理 '+done+' / '+ops.length+' 筆。請確認權限後可重新匯入同一個備份檔繼續（同編號資料會直接覆蓋）。';
+    writeErr(e);btn.disabled=false;
+  }finally{$('bkFile').disabled=false}
+};
+
+/* ================= paper-format export of the vehicle driving log (車輛駕駛記錄表) ================= */
+function escHtml(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function paperPage(v,trips,pageNo,pages){
+  var PER=18,rows='';
+  for(var i=0;i<PER;i++){
+    var l=trips[i];
+    if(l){
+      var ret=l.status==='returned';
+      var retT=ret?((l.retDate&&l.retDate!==l.date?mdOf(l.retDate)+' ':'')+(l.retTime||'')):'';
+      rows+='<tr><td rowspan="2">'+escHtml(mdOf(l.date))+'</td><td rowspan="2">'+escHtml(l.unit)+'</td><td rowspan="2">'+escHtml(l.driver)+'</td><td rowspan="2" class="l">'+escHtml(l.route)+'</td>'
+        +'<td class="n">'+escHtml(l.outMileage)+' 公里</td><td class="n">'+escHtml(l.outTime)+'</td>'
+        +'<td rowspan="2" class="mk'+(l.look==='bad'?' bad':'')+'">'+(l.look==='bad'?'✕':'✓')+'</td><td rowspan="2" class="mk'+(l.cond==='bad'?' bad':'')+'">'+(l.cond==='bad'?'✕':'✓')+'</td></tr>'
+        +'<tr><td class="n">'+(ret?escHtml(l.retMileage)+' 公里':'使用中')+'</td><td class="n">'+escHtml(retT)+'</td></tr>';
+    }else{
+      rows+='<tr><td rowspan="2"></td><td rowspan="2"></td><td rowspan="2"></td><td rowspan="2"></td><td class="n">&nbsp;</td><td class="n">&nbsp;</td><td rowspan="2"></td><td rowspan="2"></td></tr><tr><td class="n">&nbsp;</td><td class="n">&nbsp;</td></tr>';
+    }
+  }
+  return '<section class="page"><table>'
+    +'<colgroup><col style="width:9%"><col style="width:9%"><col style="width:12%"><col style="width:21%"><col style="width:17%"><col style="width:12%"><col style="width:10%"><col style="width:10%"></colgroup>'
+    +'<thead><tr><th colspan="8" class="title">車輛駕駛記錄表</th></tr>'
+    +'<tr><th colspan="8" class="plate">車號 :'+escHtml(v.plate)+(v.name?'　'+escHtml(v.name):'')+'</th></tr>'
+    +'<tr><th>日期</th><th>單位</th><th>駕駛人</th><th>往返地點</th><th>出發里程數<br>返回里程數</th><th>出發時間<br>返回時間</th><th>外觀</th><th>車況*</th></tr></thead>'
+    +'<tbody>'+rows+'</tbody>'
+    +'<tfoot><tr><td colspan="8" class="note">備註：車況檢查包含儀表（油表、水溫及儀表各項燈號）、煞車、喇叭、燈號等。外觀、車況欄：✓ 表示正常，✕ 表示有異常。</td></tr></tfoot>'
+    +'</table><div class="meta">第 '+pageNo+' / '+pages+' 頁</div></section>';
+}
+function exportPaper(){
+  if(!dl){toast('此檢視環境無法下載檔案');return}
+  var vs=data.vehicles.slice().sort(function(a,b){return a.id<b.id?-1:1});
+  if(!vs.length){toast('尚未建立車輛');return}
+  var body='',total=0;
+  vs.forEach(function(v){
+    var logs=data.vehicleLogs.filter(function(l){return l.plate===v.id}).sort(function(a,b){var x=logKey(a),y=logKey(b);return x<y?-1:x>y?1:(a.createdAt||0)-(b.createdAt||0)});
+    total+=logs.length;
+    var pages=Math.max(1,Math.ceil(logs.length/18));
+    for(var p=0;p<pages;p++)body+=paperPage(v,logs.slice(p*18,p*18+18),p+1,pages);
+  });
+  var d=new Date(),stamp=d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+  var html='<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><title>車輛駕駛記錄表 '+stamp+'</title><style>'
+    +'@page{size:A4 portrait;margin:10mm}'
+    +'*{box-sizing:border-box}body{margin:0;font-family:"Microsoft JhengHei","PingFang TC","Noto Sans TC",sans-serif;color:#000;background:#fff}'
+    +'.page{page-break-after:always;padding:6mm 0}.page:last-child{page-break-after:auto}'
+    +'table{width:100%;border-collapse:collapse;table-layout:fixed;border:2px solid #000}'
+    +'th,td{border:1px solid #000;text-align:center;padding:3px 2px;font-size:13px;height:25px;overflow-wrap:anywhere}'
+    +'th{font-weight:400;line-height:1.25}.title{font-size:21px;letter-spacing:.9em;padding:8px 0 8px .9em}.plate{text-align:left;padding-left:8px;font-size:15px}'
+    +'td.l{text-align:left;padding-left:6px}td.n{font-variant-numeric:tabular-nums}.mk{font-size:17px;font-weight:700}.mk.bad{color:#b3261e}'
+    +'.note{text-align:left;font-size:12px;padding:6px 8px;height:auto}.meta{font-size:11px;color:#666;text-align:right;margin-top:4px}'
+    +'</style></head><body>'+body+'</body></html>';
+  dl.save({filename:'車輛駕駛記錄表_'+stamp+'.html',data:html}).then(function(){toast('已匯出紙本格式（共 '+total+' 趟）')},function(e){if(!e||e.code!=='declined')toast('無法下載檔案')});
+}
+$('bkPaper').onclick=exportPaper;
+
+/* ---- boot ---- */
+renderAll(true);
+fromHash();
+connect();
+})();
+</script>
+</body></html>
