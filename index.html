@@ -309,7 +309,7 @@ table.sheet th{background:var(--surface2);color:var(--ink);font-size:13px;line-h
     <p class="empty" style="margin:0">一般同仁請輸入「登記密碼」，管理者請輸入「管理者密碼」。</p>
     <div id="pinMsg" style="color:var(--bad);font-size:13px;min-height:1.3em"></div>
     <label class="f"><span>密碼</span><input type="password" id="pinInput" autocomplete="current-password"></label>
-    <div class="actions"><button type="button" id="pinOk" class="primary">登入</button></div>
+    <div class="actions"><button type="button" id="pinCancel" hidden>取消</button><button type="button" id="pinOk" class="primary">登入</button></div>
   </div>
 </dialog>
 
@@ -364,7 +364,7 @@ function ask(msg,btns){
 var NAMES=['vehicles','vehicleLogs','settings','vehicleRepairs','roster','places','vehicleDeleted'];
 var data={vehicles:[],vehicleLogs:[],settings:[],vehicleRepairs:[],roster:[],places:[],vehicleDeleted:[]};
 var db=null,dl=null,user=null,mode='connecting',canWrite=true,isAdmin=true,dbErr='';
-var remote=false,API='',PIN='',REV=null,pollT=null,loaded=false,PIN_KEY='vehiclelog.pin';
+var remote=false,anon=false,anonOff=false,API='',PIN='',REV=null,pollT=null,loaded=false,PIN_KEY='vehiclelog.pin';
 var LKEY='vehiclelog.local.v1';
 function fire(){try{renderAll()}catch(e){console.error(e)}}
 function localLoad(){try{var r=localStorage.getItem(LKEY);if(r){var o=JSON.parse(r);NAMES.forEach(function(n){data[n]=o[n]||[]});return true}}catch(e){}return false}
@@ -443,9 +443,10 @@ function remoteApply(res){
   NAMES.forEach(function(n){data[n]=(res.data&&res.data[n])||[]});
   REV=res.rev;isAdmin=res.role==='admin';canWrite=true;loaded=true;dbErr='';fire();
 }
-function askPin(msg){
+function askPin(msg,cancelable){
   return new Promise(function(resolve){
     var d=$('dlgPin');$('pinMsg').textContent=msg||'';$('pinInput').value='';
+    $('pinCancel').hidden=!cancelable;$('pinCancel').onclick=function(){d.close();resolve(null)};
     $('pinOk').onclick=function(){var v=$('pinInput').value.trim();if(!v){$('pinMsg').textContent='請輸入密碼';return}d.close();resolve(v)};
     $('pinInput').onkeydown=function(e){if(e.key==='Enter'){e.preventDefault();$('pinOk').click()}};
     d.showModal();$('pinInput').focus();
@@ -454,6 +455,10 @@ function askPin(msg){
 async function login(msg){
   msg=msg||'';
   for(;;){
+    if(!PIN&&!anonOff){
+      /* when the back end has no registration password (USER_PIN=''), staff need no login */
+      try{var a=await apiCall({op:'list',force:true});if(a.ok){anon=true;remoteApply(a);return true}if(a.error==='auth')anonOff=true}catch(e){}
+    }
     if(!PIN)PIN=await askPin(msg);
     try{
       var res=await apiCall({op:'list',force:true});
@@ -511,7 +516,7 @@ function setting(k){var s=data.settings.find(function(x){return x.id==='app'});r
 function setTab(){renderAll(true)}
 function renderNotice(){
   var bb=$('btnBackup');if(bb)bb.hidden=!isAdmin;
-  var lo=$('btnLogout');if(lo){lo.hidden=!remote;lo.textContent=(isAdmin?'管理者':'同仁')+'・切換身分'}
+  var lo=$('btnLogout');if(lo){lo.hidden=!remote;lo.textContent=anon?(isAdmin?'管理者・登出':'管理者登入'):(isAdmin?'管理者':'同仁')+'・切換身分'}
   var n=$('notice');n.textContent='';
   if(remote&&!loaded&&!dbErr)n.appendChild(h('div',{class:'note soft',text:'連線中，請稍候…'}));
   if(mode==='local')n.appendChild(h('div',{class:'note soft',text:'示範模式：資料只存在這台裝置，不會與其他人共用。'}));
@@ -1218,7 +1223,20 @@ function exportPaper(){
 }
 $('bkPaper').onclick=exportPaper;
 
-$('btnLogout').onclick=async function(){PIN='';lsSet(PIN_KEY,'');await login('請輸入密碼（登記密碼或管理者密碼）。')};
+$('btnLogout').onclick=async function(){
+  if(anon&&isAdmin){PIN='';lsSet(PIN_KEY,'');await login('');return}
+  if(anon){
+    var msg='';
+    for(;;){
+      var v=await askPin(msg||'請輸入管理者密碼。',true);
+      if(v===null)return;
+      PIN=v;
+      try{var res=await apiCall({op:'list',force:true});if(res.ok&&res.role==='admin'){lsSet(PIN_KEY,PIN);remoteApply(res);return}}catch(e){}
+      PIN='';msg='管理者密碼不正確，請再輸入一次。';
+    }
+  }
+  PIN='';lsSet(PIN_KEY,'');await login('請輸入密碼（登記密碼或管理者密碼）。');
+};
 $('dlgPin').addEventListener('cancel',function(e){e.preventDefault()});
 
 /* ---- boot ---- */

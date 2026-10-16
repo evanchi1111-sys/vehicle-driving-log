@@ -8,8 +8,8 @@
  */
 
 // ===== 一定要修改這兩個密碼（至少 6 個字元，不要使用常見的數字）=====
-var USER_PIN  = 'CHANGE-ME-USER';   // 登記密碼：給同仁，可登記行車紀錄
-var ADMIN_PIN = 'CHANGE-ME-ADMIN';  // 管理者密碼：可修改、刪除、管理清單、備份還原
+var USER_PIN  = 'CHANGE-ME-USER';   // 登記密碼：給同仁。想讓同仁免密碼登記，改成 ''（兩個單引號，中間不放字）；仍只能新增行車紀錄
+var ADMIN_PIN = 'CHANGE-ME-ADMIN';  // 管理者密碼（一定要改，至少 6 個字元）：可修改、刪除、管理清單、備份還原
 // ====================================================================
 
 // write: 'admin' = 只有管理者可寫入；'create' = 一般同仁只能新增，不能改或刪既有資料
@@ -125,12 +125,14 @@ function write_(role, ops) {
 
 function auth_(pin) {
   if (String(USER_PIN).indexOf('CHANGE-ME') === 0 || String(ADMIN_PIN).indexOf('CHANGE-ME') === 0) throw fail_('not_configured', '請先修改程式裡的兩個密碼');
+  if ((pin == null || String(pin) === '') && String(USER_PIN) === '') return 'user';  // 免密碼登記：同仁只有新增行車紀錄的權限
   var cache = CacheService.getScriptCache();
   var fails = Number(cache.get('fails') || 0);
   if (fails >= MAX_FAILS) throw fail_('locked', '密碼錯誤次數過多，請 10 分鐘後再試');
   pin = String(pin == null ? '' : pin);
   if (pin === String(ADMIN_PIN)) return 'admin';
   if (pin === String(USER_PIN)) return 'user';
+  if (pin === '') throw fail_('auth', '需要密碼');  // 沒帶密碼的探測不計入錯誤次數
   cache.put('fails', String(fails + 1), 600);
   throw fail_('auth', '密碼不正確');
 }
