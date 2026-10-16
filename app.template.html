@@ -232,7 +232,7 @@ dialog h2{margin:0;font-size:18px}
 #cTable td.loccell{white-space:normal;width:170px;max-width:170px}
 .holtag{max-width:9em;overflow:hidden;text-overflow:ellipsis}
 .routebox{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px;align-items:start}
-.routebox>.mono{padding-top:9px;font-weight:700}
+.routebox>.mono{padding-top:11px;font-weight:700;font-family:var(--sans);white-space:nowrap}
 .bftag{display:inline-block;margin-left:4px;padding:0 5px;border-radius:8px;font-size:11px;font-weight:700;background:var(--warn-bg);color:var(--warn);border:1px solid var(--warn);vertical-align:1px}
 .bftag.ed{background:var(--surface2);color:var(--mute);border-color:var(--line)}
 .lastbox{border:1px solid var(--line);background:var(--surface2);border-radius:8px;padding:10px 14px;display:grid;gap:2px}
@@ -260,6 +260,50 @@ table.sheet th{background:var(--surface2);color:var(--ink);font-size:13px;line-h
 .sheetfoot{font-size:12px;color:var(--mute);padding:6px 14px 12px}
 .todaytag{display:inline-block;margin-left:6px;padding:0 8px;border-radius:9px;background:var(--today-edge);color:#1a1300;font-size:11px;font-weight:700;vertical-align:1px}
 .day.today{background:color-mix(in srgb,var(--today-edge) 24%,var(--surface));box-shadow:inset 0 0 0 2px var(--today-edge)}
+/* ---- text size & touch targets (phones at the car, desktop for the admin) ---- */
+body{font-size:16px}
+input[type=text],input[type=date],input[type=time],input[type=number],input[type=url],input[type=password],select,textarea{font-size:16px}
+input[type=password]{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--surface);min-height:44px}
+.empty{font-size:14px}
+.kv{font-size:15px}
+.f>span{font-size:15px}
+.f small{font-size:13px}
+.note{font-size:14px}
+.lb-k,.lb-s{font-size:13px}
+table.sheet td{font-size:15px}
+table.sheet th{font-size:14px}
+.sheetfoot{font-size:13px}
+.brand{font-size:18px}
+.hbtn{font-size:14px;min-height:36px}
+@media (min-width:900px){
+  .vpage{max-width:720px}
+  .vcard .plate,.vhead .plate{font-size:24px}
+  .cars{grid-template-columns:repeat(auto-fill,minmax(340px,1fr))}
+}
+@media (max-width:640px){
+  .wrap{padding-inline:14px}
+  button{min-height:46px;padding:8px 14px}
+  input[type=text],input[type=date],input[type=time],input[type=number],input[type=url],input[type=password],select{min-height:48px}
+  .hbtn{min-height:40px}
+  .chip{min-height:40px}
+  .seg button{min-height:48px;min-width:84px}
+  .vcard{padding:16px}
+  .vcard .plate,.vhead .plate{font-size:28px}
+  .lb-v{font-size:34px}
+  .kv{font-size:16px;gap:6px 12px}
+  .empty{font-size:15px}
+  .f>span{font-size:16px}
+  .formcard{padding:16px}
+  .formcard h2,.sec-title h2{font-size:20px}
+  .btnrow>button{flex:1 1 auto}
+  table.sheet th,table.sheet td{font-size:15px;padding:8px 8px}
+  .vrow{flex-wrap:wrap}
+  .brand{font-size:19px}
+  .submitbar{justify-content:stretch;background:var(--bg);border-top:1px solid var(--line);padding-inline:0}
+  .submitbar button{flex:1 1 0}
+  .submitbar button.primary{flex:2 1 0;font-size:17px;min-height:52px}
+  .dbody .actions button{flex:1 1 auto}
+}
 .day.today.sel{box-shadow:none}
 .foot{color:var(--mute);font-size:12px;padding-bottom:28px}
 </style>
