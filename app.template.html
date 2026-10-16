@@ -556,7 +556,7 @@ window.addEventListener('hashchange',fromHash);
 function statusPill(p){return null}
 function lastBox(p){
   var l=logsOf(p).find(function(x){return x.status==='returned'&&x.retMileage!=null}),v=vehicle(p),km=lastMileage(p);
-  var sub=l?mdOf(l.date)+' '+(l.retTime||'')+'　'+l.unit+' '+l.driver+'　'+l.route:(km!==''?'建檔里程，尚無行車紀錄':'尚無里程資料');
+  var sub=l?mdOf(l.date)+' '+(l.retTime||'')+'　'+l.unit+' '+l.driver+'　'+routeText(l):(km!==''?'建檔里程，尚無行車紀錄':'尚無里程資料');
   return h('div',{class:'lastbox'},h('div',{class:'lb-k',text:'上次返回里程'}),h('div',{class:'lb-v mono',text:km===''?'—':km+' 公里'}),h('div',{class:'lb-s',text:sub}));
 }
 function markText(x,note){return x==='bad'?h('span',{class:'mk bad',text:'✕',title:note||'異常'}):h('span',{class:'mk ok',text:'✓',title:'正常'})}
@@ -683,10 +683,27 @@ function rosterPanel(){
   return d;
 }
 var placesOpen=false;
-function placesDoc(){return data.places.find(function(x){return x.id==='current'})||{origin:'W5',rows:[]}}
-function savePlaces(origin,rows){return put('places',{id:'current',origin:origin||'W5',rows:rows,at:Date.now()})}
+function placesDoc(){var d=data.places.find(function(x){return x.id==='current'});if(!d)return {origin:'W5大樓',rows:[]};var fix=function(s){return s==='W5'?'W5大樓':s};return Object.assign({},d,{origin:fix(d.origin||'W5大樓'),rows:(d.rows||[]).map(fix)})}
+function savePlaces(origin,rows){return put('places',{id:'current',origin:origin||'W5大樓',rows:rows,at:Date.now()})}
+function viaList(l){var v=l&&l.via;return Array.isArray(v)?v.filter(Boolean):(v?[String(v)]:[])}
+function routeText(l){var v=viaList(l);return (l.route||'')+(v.length?'（中途：'+v.join('、')+'）':'')}
+var viaSeq=0;
+function viaField(init){
+  var rows=placesDoc().rows||[],box=h('div',{style:'display:grid;gap:8px'}),items=[];
+  function addOne(cur){
+    var it={};
+    var wrap=h('div',{style:'display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:start'});
+    if(rows.length){var c=combo('oVia'+(++viaSeq),'其他地點（自行輸入）','請輸入中途點');c.fill(rows,cur||'');it.get=c.get;wrap.appendChild(c.node)}
+    else{var t=h('input',{type:'text',placeholder:'中途點',value:cur||''});it.get=function(){return t.value.trim()};wrap.appendChild(t)}
+    wrap.appendChild(h('button',{type:'button',class:'ghost',style:'color:var(--bad)','aria-label':'移除這個中途點',text:'✕ 移除',onclick:function(){wrap.remove();items=items.filter(function(x){return x!==it})}}));
+    items.push(it);box.appendChild(wrap);
+  }
+  (init||[]).forEach(addOne);
+  var node=h('div',{style:'display:grid;gap:8px'},box,h('div',null,h('button',{type:'button',text:'＋ 新增中途點',onclick:function(){addOne('')}})));
+  return {node:node,get:function(){return items.map(function(x){return x.get()}).filter(Boolean)}};
+}
 function routeField(initRoute){
-  var pl=placesDoc(),rows=pl.rows||[],origin=pl.origin||'W5';
+  var pl=placesDoc(),rows=pl.rows||[],origin=pl.origin||'W5大樓';
   if(!rows.length){
     var r=h('input',{type:'text',id:'oRoute',value:initRoute||mem('route')||origin+' ↔ ',list:'dlRoute',autocomplete:'off'});
     return {node:r,dest:function(){return ''},get value(){var v=r.value.trim();return v===origin+' ↔'?'':v}};
@@ -695,7 +712,7 @@ function routeField(initRoute){
   return {node:h('div',{class:'routebox'},h('span',{class:'mono',text:origin+' ↔'}),c.node),dest:c.get,get value(){var d=c.get();return d?origin+' ↔ '+d:''}};
 }
 function placesPanel(){
-  var pl=placesDoc(),rows=(pl.rows||[]).slice(),origin=pl.origin||'W5',can=isAdmin&&canWrite;
+  var pl=placesDoc(),rows=(pl.rows||[]).slice(),origin=pl.origin||'W5大樓',can=isAdmin&&canWrite;
   var d=h('details',{class:'panel',style:'padding:10px 14px;margin-bottom:12px'});
   d.open=placesOpen;d.addEventListener('toggle',function(){placesOpen=d.open});
   d.appendChild(h('summary',{style:'cursor:pointer;font-weight:700',text:'往返地點清單：'+(rows.length?rows.length+' 個地點（起點 '+origin+'）':'尚未設定')}));
@@ -742,7 +759,7 @@ function logSheet(v,limit){
     var ret=l.status==='returned';
     var retT=ret?((l.retDate&&l.retDate!==l.date?mdOf(l.retDate)+' ':'')+l.retTime):'—';
     tb.appendChild(h('tr',null,
-      h('td',{rowspan:2},mdOf(l.date),l.backfill?h('span',{class:'bftag',title:'補登：'+(l.backfillReason||''),text:'補'}):null,l.editedAt?h('span',{class:'bftag ed',title:'已修改：'+(l.editedReason||''),text:'改'}):null),h('td',{rowspan:2,text:l.unit}),h('td',{rowspan:2,text:l.driver}),h('td',{rowspan:2,class:'l',text:l.route}),
+      h('td',{rowspan:2},mdOf(l.date),l.backfill?h('span',{class:'bftag',title:'補登：'+(l.backfillReason||''),text:'補'}):null,l.editedAt?h('span',{class:'bftag ed',title:'已修改：'+(l.editedReason||''),text:'改'}):null),h('td',{rowspan:2,text:l.unit}),h('td',{rowspan:2,text:l.driver}),h('td',{rowspan:2,class:'l',text:routeText(l)}),
       h('td',{class:'mono',text:l.outMileage+' 公里'}),h('td',{class:'mono',text:l.outTime}),
       h('td',{rowspan:2},markText(l.look,l.note)),h('td',{rowspan:2},markText(l.cond,l.note)),adm?h('td',{rowspan:2},h('button',{type:'button',class:'ghost',style:'min-height:28px;padding:0 8px',text:'編輯',onclick:function(){gotoTrip(v.id,{editId:l.id})}})):null));
     tb.appendChild(h('tr',null,
@@ -834,7 +851,7 @@ function deletedPanel(){
     var l=x.log||{},when=new Date(x.at||0);
     var who=h('span',{text:'管理者'});(spans[x.by||'']=spans[x.by||'']||[]).push(who);
     d.appendChild(h('div',{class:'item',style:'--c:var(--mute);margin-top:8px'},
-      h('div',{class:'t',text:x.plate+'　'+mdOf(l.date)+'　'+(l.unit||'')+' '+(l.driver||'')+'　'+(l.route||'')}),
+      h('div',{class:'t',text:x.plate+'　'+mdOf(l.date)+'　'+(l.unit||'')+' '+(l.driver||'')+'　'+routeText(l)}),
       h('div',{class:'m',text:'里程 '+l.outMileage+' → '+l.retMileage+' 公里｜刪除時間 '+(when.getMonth()+1)+'/'+when.getDate()+' '+pad(when.getHours())+':'+pad(when.getMinutes())+'｜原因：'+(x.reason||'')}),
       h('div',{class:'m'},'刪除者：',who,h('button',{type:'button',class:'ghost',style:'margin-left:12px;min-height:26px;padding:0 8px',disabled:!canWrite,text:'還原',onclick:async function(){
         try{await put('vehicleLogs',l);await del('vehicleDeleted',x.id);toast('已還原這筆紀錄')}catch(e){writeErr(e)}
@@ -848,7 +865,7 @@ function exportCars(){
   var rows=[['車號','日期','單位','駕駛人','往返地點','出發里程數','返回里程數','出發時間','返回時間','外觀','車況','說明','補登原因','修改原因']];
   data.vehicleLogs.slice().sort(function(a,b){return (a.createdAt||0)-(b.createdAt||0)}).forEach(function(l){
     var ret=l.status==='returned';
-    rows.push([l.plate,(l.date||'').replace(/-/g,'/'),l.unit,l.driver,l.route,l.outMileage,ret?l.retMileage:'',l.outTime,ret?l.retTime:'',l.look==='bad'?'✕':'✓',l.cond==='bad'?'✕':'✓',l.note||'',l.backfillReason||'',l.editedReason||'']);
+    rows.push([l.plate,(l.date||'').replace(/-/g,'/'),l.unit,l.driver,routeText(l),l.outMileage,ret?l.retMileage:'',l.outTime,ret?l.retTime:'',l.look==='bad'?'✕':'✓',l.cond==='bad'?'✕':'✓',l.note||'',l.backfillReason||'',l.editedReason||'']);
   });
   saveCsv('車輛駕駛記錄.csv',rows);
 }
@@ -920,7 +937,7 @@ function tripForm(v){
   var st=vState(v.id),last=lastMileage(v.id),lock=mode==='new';
   var date=h('input',{type:'date',id:'tDate',value:rec?rec.date:ds(new Date())});
   var pf=personFields(rec?rec.unit:mem('unit'),rec?rec.driver:mem('driver')),unit=pf.unit,driver=pf.driver;
-  var route=routeField(rec?rec.route:null);
+  var route=routeField(rec?rec.route:null),viaF=viaField(rec?viaList(rec):[]);
   var kmOut=h('input',{type:'number',id:'tKmOut',inputmode:'numeric',value:rec?rec.outMileage:(mode==='back'?'':last)});
   var kmRet=h('input',{type:'number',id:'tKmRet',inputmode:'numeric',placeholder:'返回時里程表',value:rec?rec.retMileage:''});
   var tOut=h('input',{type:'time',id:'tOut',value:rec?rec.outTime:''});
@@ -985,7 +1002,7 @@ function tripForm(v){
     submit.disabled=true;
     try{
       var now=Date.now();
-      var base={plate:v.id,status:'returned',date:date.value,unit:unit.value.trim(),driver:driver.value.trim(),route:route.value.trim(),
+      var base={plate:v.id,status:'returned',date:date.value,unit:unit.value.trim(),driver:driver.value.trim(),route:route.value.trim(),via:viaF.get(),
         outMileage:+kmOut.value,outTime:tOut.value,retMileage:+kmRet.value,retTime:tRet.value,retDate:date.value,look:look.get(),cond:cond.get(),note:note.value.trim()};
       if(mode==='edit')await put('vehicleLogs',Object.assign({},rec,base,{editedAt:now,editedReason:why.value.trim(),updatedAt:now}));
       else{
@@ -1016,7 +1033,7 @@ function tripForm(v){
       h('p',{class:'empty',style:'margin:0',text:sub}),mode==='new'?lastBox(v.id):null,
       field('日期',date,null,true),
       h('div',{class:'two'},field('單位',unit.node,'請填寫單位代碼',true),field('駕駛人',driver.node,null,true)),
-      field('往返地點',route.node,null,true),
+      field('往返地點',route.node,null,true),h('div',{class:'f'},h('span',{text:'中途點（選填，依經過順序）'}),viaF.node),
       h('div',{class:'two'},field('出發里程數（公里）',kmOut,mode==='new'&&last!==''?'上次返回：'+last+' 公里':null,true),field('返回里程數（公里）',kmRet,null,true)),mileMsg,
       h('div',{class:'two'},field('出發時間',tOut,null,true),field('返回時間',tRet,null,true)),
       h('div',{class:'chk'},h('div',null,h('span',{text:'外觀'}),h('small',{class:'empty',style:'display:block',text:lock&&st.look.bad?'已登記異常，維修完成後由管理者標記修復':'✓ 正常　✕ 有異常'})),look.node),
@@ -1199,7 +1216,7 @@ function paperPage(v,trips,pageNo,pages){
     if(l){
       var ret=l.status==='returned';
       var retT=ret?((l.retDate&&l.retDate!==l.date?mdOf(l.retDate)+' ':'')+(l.retTime||'')):'';
-      rows+='<tr><td rowspan="2">'+escHtml(mdOf(l.date))+'</td><td rowspan="2">'+escHtml(l.unit)+'</td><td rowspan="2">'+escHtml(l.driver)+'</td><td rowspan="2" class="l">'+escHtml(l.route)+'</td>'
+      rows+='<tr><td rowspan="2">'+escHtml(mdOf(l.date))+'</td><td rowspan="2">'+escHtml(l.unit)+'</td><td rowspan="2">'+escHtml(l.driver)+'</td><td rowspan="2" class="l">'+escHtml(routeText(l))+'</td>'
         +'<td class="n">'+escHtml(l.outMileage)+' 公里</td><td class="n">'+escHtml(l.outTime)+'</td>'
         +'<td rowspan="2" class="mk'+(l.look==='bad'?' bad':'')+'">'+(l.look==='bad'?'✕':'✓')+'</td><td rowspan="2" class="mk'+(l.cond==='bad'?' bad':'')+'">'+(l.cond==='bad'?'✕':'✓')+'</td></tr>'
         +'<tr><td class="n">'+(ret?escHtml(l.retMileage)+' 公里':'使用中')+'</td><td class="n">'+escHtml(retT)+'</td></tr>';
