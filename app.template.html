@@ -425,8 +425,10 @@ function fileSaver(){
 }
 
 /* ---- remote mode: static page + Google Apps Script web app (shared Google Sheet) ---- */
-function lsGet(k){try{return localStorage.getItem(k)||''}catch(e){return ''}}
-function lsSet(k,v){try{if(v)localStorage.setItem(k,v);else localStorage.removeItem(k)}catch(e){}}
+/* password is kept only for this browser tab (sessionStorage): closing the tab or scanning a QR code again asks again */
+function lsGet(k){try{return sessionStorage.getItem(k)||''}catch(e){return ''}}
+function lsSet(k,v){try{if(v)sessionStorage.setItem(k,v);else sessionStorage.removeItem(k)}catch(e){}}
+try{localStorage.removeItem('vehiclelog.pin')}catch(e){}
 function remoteErr(res){
   var c=res&&res.error;
   return {code:(c==='forbidden'||c==='auth')?'invalid_argument':c==='too_large'?'quota_exceeded':(c||'unavailable'),message:(res&&res.message)||c||'失敗'};
@@ -798,8 +800,8 @@ function carList(){
     vs.forEach(function(v){chips.appendChild(h('button',{type:'button',class:'chip','aria-pressed':String(v.id===sheetPlate),text:v.plate,onclick:function(){sheetPlate=v.id;renderCars()}}))});
     wrap.appendChild(h('div',{class:'sec-title'},h('h2',{text:'車輛駕駛記錄表'}),chips));
     wrap.appendChild(logSheet(vehicle(sheetPlate),40));
-    wrap.appendChild(deletedPanel()||document.createComment(''));
   }
+  wrap.appendChild(deletedPanel()||document.createComment(''));
   return wrap;
 }
 var deletedOpen=false;
@@ -810,6 +812,7 @@ function deletedPanel(){
   d.open=deletedOpen;d.addEventListener('toggle',function(){deletedOpen=d.open});
   d.appendChild(h('summary',{style:'cursor:pointer;font-weight:700',text:'已刪除的紀錄：'+rows.length+' 筆'}));
   if(!rows.length){d.appendChild(h('p',{class:'empty',text:'目前沒有被刪除的紀錄。'}));return d}
+  d.appendChild(h('p',{class:'empty',text:'還原整台被刪除車輛的紀錄前，請先用同一個車號重新新增該車輛。'}));
   var spans={};
   rows.forEach(function(x){
     var l=x.log||{},when=new Date(x.at||0);
@@ -842,7 +845,34 @@ function carDetail(v){
     lastBox(v.id),kv,
     h('button',{type:'button',class:'primary',style:'min-height:52px;font-size:17px',disabled:!canWrite,text:'返回登記',onclick:function(){goto('trip',v.id)}}),h('button',{type:'button',disabled:!canWrite,text:'補登一筆（忘記登記時）',onclick:function(){gotoTrip(v.id,{backfill:true})}}));
   return h('div',{class:'vpage',style:'max-width:760px'},
-    h('div',null,h('button',{type:'button',class:'ghost',text:'← 車輛清單',onclick:function(){cv={mode:'list'};renderCars()}})),head,repairPanel(v),logSheet(v,10));
+    h('div',null,h('button',{type:'button',class:'ghost',text:'← 車輛清單',onclick:function(){cv={mode:'list'};renderCars()}})),head,repairPanel(v),logSheet(v,10),deleteVehiclePanel(v));
+}
+function deleteVehiclePanel(v){
+  if(!(isAdmin&&canWrite))return document.createComment('');
+  var logs=logsOf(v.id),reps=data.vehicleRepairs.filter(function(r){return r.plate===v.id});
+  var box=h('div',{class:'panel formcard',style:'margin-top:12px'});
+  var open=h('button',{type:'button',class:'ghost',text:'刪除這台車…'});
+  var form=h('div',{hidden:true});
+  var msg=logs.length?'這台車有 '+logs.length+' 筆行車紀錄。刪除後這些紀錄會移到下方「已刪除的紀錄」，可以逐筆還原。':'這台車沒有行車紀錄。';
+  var typed=h('input',{type:'text',placeholder:'輸入車號 '+v.plate+' 確認',autocapitalize:'characters'});
+  var go=h('button',{type:'button',class:'danger',text:'確定刪除',onclick:async function(){
+    if(typed.value.trim().toUpperCase()!==v.id){toast('請輸入完整車號 '+v.plate+' 才能刪除');return}
+    go.disabled=true;
+    try{
+      var ops=[],at=Date.now();
+      logs.forEach(function(l,i){ops.push(['set','vehicleDeleted',{id:'D'+at+'_'+i,plate:v.id,log:l,at:at,by:'',reason:'刪除車輛 '+v.plate}]);ops.push(['delete','vehicleLogs',l.id])});
+      reps.forEach(function(r){ops.push(['delete','vehicleRepairs',r.id])});
+      ops.push(['delete','vehicles',v.id]);
+      for(var i=0;i<ops.length;i+=100)await applyOps(ops.slice(i,i+100));
+      toast('已刪除車輛 '+v.plate);cv={mode:'list'};renderCars();
+    }catch(e){go.disabled=false;writeErr(e)}
+  }});
+  form.appendChild(h('p',{class:'empty',text:msg+'此動作無法自動復原車輛本身（可用備份檔還原），建議刪除前先做一次備份。'}));
+  form.appendChild(h('label',{class:'f'},h('span',{text:'確認車號'}),typed));
+  form.appendChild(h('div',{class:'actions'},go,h('button',{type:'button',text:'取消',onclick:function(){form.hidden=true;open.hidden=false;typed.value=''}})));
+  open.onclick=function(){form.hidden=false;open.hidden=true;typed.focus()};
+  box.appendChild(open);box.appendChild(form);
+  return box;
 }
 function field(label,input,hint,req){
   return h('label',{class:'f'},h('span',null,label,req?' ':null,req?h('em',{text:'*'}):null),input,hint?h('small',{text:hint}):null);
