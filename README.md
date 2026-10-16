@@ -5,6 +5,14 @@
 
 **示範網頁**：<https://evanchi1111-sys.github.io/vehicle-driving-log/>（只有示範資料，資料存在各自的瀏覽器，不會共用）
 
+**三種使用方式**
+
+| 方式 | 同仁需要帳號？ | 資料存放 | 適合 |
+|---|---|---|---|
+| **GitHub Pages ＋ Google 試算表**（建議） | 不需要，輸入登記密碼即可 | 你的 Google 試算表 | 正式給全單位使用 |
+| Claude Artifact | 需要 Claude 帳號與權限 | Artifact 內建資料庫 | 少數人使用 |
+| 直接開啟 `index.html` | 不需要 | 只存在該瀏覽器（示範） | 試用、展示 |
+
 ## 功能
 
 - **返回登記**：用完車後掃車上的 QR Code，一次填完日期、單位、駕駛人、往返地點、出發與返回里程、出發與返回時間、外觀、車況。
@@ -26,12 +34,25 @@
 | `app.template.html` | 主程式（供發佈為 Claude Artifact；頁面內容片段，平台會自動加上外層） |
 | `index.html` | 完整網頁文件，可直接用瀏覽器開啟或放到靜態網站空間（由 `build.ps1` 產生） |
 | `build.ps1` | 由 `app.template.html` 產生 `index.html` |
+| `config.js` | 連線設定：`window.VEHICLE_API` 填入 Google Apps Script 網頁應用程式網址；留空為示範模式 |
+| `apps-script/Code.gs` | Google Apps Script 後端（密碼檢查、權限、寫入 Google 試算表） |
+| `docs/Google設定步驟.md` | 一步一步的 Google 設定說明 |
 
 ## 使用方式
 
 ### 本機試用（示範模式）
 
 直接用瀏覽器開啟 `index.html`。資料只存在該瀏覽器，不會與他人共用；內建兩台示範車輛（`DEMO-001`、`DEMO-002`）。
+
+### GitHub Pages ＋ Google 試算表（建議，同仁不需要帳號）
+
+1. 依 [docs/Google設定步驟.md](docs/Google設定步驟.md) 建立 Google Apps Script 後端，設定兩組密碼：**登記密碼**（同仁，只能新增行車紀錄）與**管理者密碼**（修改、刪除、管理清單、備份還原）。
+2. 把部署後的網頁應用程式網址填入 `config.js`，推送後 GitHub Pages 會自動更新。
+3. 同仁掃 QR Code → 輸入登記密碼（手機會記住）→ 登記。資料寫入 Google 試算表，另有自動整理的「行車紀錄（檢視用）」工作表可直接閱讀與列印。
+
+後端由 Google Apps Script 強制檢查權限：同仁只能**新增**行車紀錄，不能修改或刪除；管理清單、修復、刪除紀錄只有管理者密碼可以操作；密碼錯誤累計 30 次會暫時鎖定 10 分鐘。登入後網頁每 15 秒檢查一次是否有其他人更新。
+
+注意：網址與密碼請勿公開張貼；行車紀錄含人員姓名，請確認符合單位資料政策。
 
 ### 發佈為 Claude Artifact（多人共用資料庫）
 
@@ -56,11 +77,11 @@
 
 ### 放在 GitHub Pages 等靜態空間
 
-只會是示範模式：每個人的瀏覽器各存各的資料，**不會共用**，也沒有管理者與一般同仁的區分。免費帳號的 GitHub Pages 需要公開倉庫，網址任何人都能開啟。正式給多人使用請用 Claude Artifact 或自行架設後端。
+`config.js` 的網址留空時是示範模式：每個人的瀏覽器各存各的資料，**不會共用**，也沒有管理者與一般同仁的區分。免費帳號的 GitHub Pages 需要公開倉庫，網址任何人都能開啟。正式使用請依上面的方式接上 Google 後端。
 
 ### 搬到自己的伺服器
 
-資料存取集中在資料層的 `put(集合, 物件)`、`del(集合, 編號)`、`subscribe(集合)` 與 `connect()`，改成呼叫自己的 API 即可；其餘畫面與邏輯不需要改。
+資料存取集中在資料層的 `put(集合, 物件)`、`del(集合, 編號)`、`connect()` 與 `remoteWrite` / `remoteRefresh`。Google 後端使用的 API 很簡單：對網址以 `Content-Type: text/plain` POST 一個 JSON，欄位 `pin`、`op`（`ping`、`list`、`set`、`delete`、`batch`）、`collection`、`id`、`data`；回傳 `{ok, role, rev, data}`。自己架設後端時照這個格式實作即可，其餘畫面與邏輯不需要改。
 
 ## 資料集合
 
@@ -72,7 +93,7 @@
 | `vehicleDeleted` | 已刪除的行車紀錄（可還原） | 管理者 |
 | `roster/current` | 單位與使用人名單 | 管理者 |
 | `places/current` | 往返地點清單與起點 | 管理者 |
-| `settings/app` | QR Code 使用的系統網址 | 一般登記者 |
+| `settings/app` | QR Code 使用的系統網址 | 管理者（Artifact 版為一般登記者） |
 
 ## 備份建議
 
@@ -86,5 +107,5 @@
 
 ## 注意
 
-- 修改與刪除按鈕只有管理者看得到，但資料庫層面能登記的人技術上也能改紀錄（登記與修改使用同一份資料）。
+- Google 試算表版由後端強制權限（同仁只能新增行車紀錄）；Claude Artifact 版的修改與刪除按鈕只有管理者看得到，但資料庫層面能登記的人技術上也能改紀錄。
 - 本倉庫只有程式碼，不含任何真實車輛、人員或行車資料。

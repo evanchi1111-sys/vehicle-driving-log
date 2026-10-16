@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>[hidden]{display:none!important}img{max-width:100%}</style></head><body>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>[hidden]{display:none!important}img{max-width:100%}</style><script src="config.js"></script></head><body>
 <meta charset="utf-8">
 <title>車輛借用系統</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -264,6 +264,7 @@ table.sheet th{background:var(--surface2);color:var(--ink);font-size:13px;line-h
   <div class="wrap">
     <div class="brand">車輛借用系統</div>
     <button id="btnBackup" class="hbtn" hidden>備份與還原</button>
+    <button id="btnLogout" class="hbtn" hidden></button>
   </div>
 </header>
 <div class="wrap" id="notice"></div>
@@ -299,6 +300,16 @@ table.sheet th{background:var(--surface2);color:var(--ink);font-size:13px;line-h
     <label id="bkFullWrap" hidden style="display:flex;gap:8px;align-items:flex-start;font-size:13px"><input type="checkbox" id="bkFull" style="width:auto;min-height:0;margin-top:3px"><span>完全還原：同時刪除備份檔裡沒有的現有資料（預設不勾，只覆蓋同編號的資料）</span></label>
     <div id="bkProgress" class="empty"></div>
     <div class="actions"><button type="button" id="bkRestore" disabled>開始還原</button><button type="button" id="bkClose">關閉</button></div>
+  </div>
+</dialog>
+
+<dialog id="dlgPin">
+  <div class="dbody">
+    <h2>請輸入密碼</h2>
+    <p class="empty" style="margin:0">一般同仁請輸入「登記密碼」，管理者請輸入「管理者密碼」。</p>
+    <div id="pinMsg" style="color:var(--bad);font-size:13px;min-height:1.3em"></div>
+    <label class="f"><span>密碼</span><input type="password" id="pinInput" autocomplete="current-password"></label>
+    <div class="actions"><button type="button" id="pinOk" class="primary">登入</button></div>
   </div>
 </dialog>
 
@@ -353,6 +364,7 @@ function ask(msg,btns){
 var NAMES=['vehicles','vehicleLogs','settings','vehicleRepairs','roster','places','vehicleDeleted'];
 var data={vehicles:[],vehicleLogs:[],settings:[],vehicleRepairs:[],roster:[],places:[],vehicleDeleted:[]};
 var db=null,dl=null,user=null,mode='connecting',canWrite=true,isAdmin=true,dbErr='';
+var remote=false,API='',PIN='',REV=null,pollT=null,loaded=false,PIN_KEY='vehiclelog.pin';
 var LKEY='vehiclelog.local.v1';
 function fire(){try{renderAll()}catch(e){console.error(e)}}
 function localLoad(){try{var r=localStorage.getItem(LKEY);if(r){var o=JSON.parse(r);NAMES.forEach(function(n){data[n]=o[n]||[]});return true}}catch(e){}return false}
@@ -360,23 +372,25 @@ function localSave(){try{localStorage.setItem(LKEY,JSON.stringify(data))}catch(e
 function put(n,obj){
   var body=JSON.parse(JSON.stringify(obj));var id=body.id;delete body.id;
   if(db)return db.doc(n+'/'+id).set(body);
+  if(remote)return remoteWrite([{op:'set',collection:n,id:id,data:body}]);
   var i=data[n].findIndex(function(x){return x.id===id});
   if(i>=0)data[n][i]=obj;else data[n].push(obj);
   localSave();fire();return Promise.resolve();
 }
 function del(n,id){
   if(db)return db.doc(n+'/'+id).delete();
+  if(remote)return remoteWrite([{op:'delete',collection:n,id:id}]);
   data[n]=data[n].filter(function(x){return x.id!==id});localSave();fire();return Promise.resolve();
 }
 function writeErr(e){
   var c=e&&e.code;
-  toast(c==='invalid_argument'?'沒有寫入權限，請管理者將你設為 Contributor 以上。':c==='quota_exceeded'?'資料量已達上限，請通知管理者。':'儲存失敗，請稍後再試。');
+  toast(c==='invalid_argument'?(remote?'沒有權限執行這個操作，請改用管理者密碼。':'沒有寫入權限，請管理者將你設為 Contributor 以上。'):c==='quota_exceeded'?'資料量已達上限，請通知管理者。':'儲存失敗，請稍後再試。');
 }
 function seedLocal(){
   data.vehicles=[{id:'DEMO-001',plate:'DEMO-001',name:'示範車輛 1',lastMileage:1000},{id:'DEMO-002',plate:'DEMO-002',name:'示範車輛 2',lastMileage:25000}];
   data.vehicleLogs=[];data.settings=[];data.vehicleRepairs=[];data.roster=[];data.places=[];data.vehicleDeleted=[];
 }
-function startLocal(){mode='local';if(!localLoad())seedLocal();fire()}
+function startLocal(){mode='local';dl=fileSaver();if(!localLoad())seedLocal();fire()}
 function subscribe(n){
   db.collection(n).onSnapshot(function(s){
     data[n]=s.docs.map(function(d){return Object.assign({id:d.id},d.data())});fire();
@@ -384,6 +398,8 @@ function subscribe(n){
 }
 async function connect(){
   var c=window.claude;
+  API=String(window.VEHICLE_API||'').trim();
+  if((!c||!c.use)&&API){await connectRemote();return}
   if(!c||!c.use){startLocal();return}
   try{db=await c.use('db')}catch(e){db=null}
   try{user=await c.use('user')}catch(e){user=null}
@@ -397,13 +413,105 @@ async function connect(){
   NAMES.forEach(subscribe);
   fire();
 }
+/* ---- downloads on normal websites (the Claude Artifact provides its own save dialog) ---- */
+function fileSaver(){
+  return {save:function(o){return new Promise(function(res,rej){
+    try{
+      var d=o.data,f=String(o.filename||'file');
+      var type=/\.html?$/i.test(f)?'text/html;charset=utf-8':/\.json$/i.test(f)?'application/json':/\.csv$/i.test(f)?'text/csv;charset=utf-8':/\.png$/i.test(f)?'image/png':'application/octet-stream';
+      var blob=(typeof Blob!=='undefined'&&d instanceof Blob)?d:new Blob([d],{type:type});
+      var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=f;document.body.appendChild(a);a.click();
+      setTimeout(function(){URL.revokeObjectURL(a.href);a.remove()},4000);res({status:'saved'});
+    }catch(e){rej(e)}
+  })}};
+}
+
+/* ---- remote mode: static page + Google Apps Script web app (shared Google Sheet) ---- */
+function lsGet(k){try{return localStorage.getItem(k)||''}catch(e){return ''}}
+function lsSet(k,v){try{if(v)localStorage.setItem(k,v);else localStorage.removeItem(k)}catch(e){}}
+function remoteErr(res){
+  var c=res&&res.error;
+  return {code:(c==='forbidden'||c==='auth')?'invalid_argument':c==='too_large'?'quota_exceeded':(c||'unavailable'),message:(res&&res.message)||c||'失敗'};
+}
+async function apiCall(body){
+  var r=await fetch(API,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(Object.assign({pin:PIN},body))});
+  return await r.json();
+}
+function remoteApply(res){
+  NAMES.forEach(function(n){data[n]=(res.data&&res.data[n])||[]});
+  REV=res.rev;isAdmin=res.role==='admin';canWrite=true;loaded=true;dbErr='';fire();
+}
+function askPin(msg){
+  return new Promise(function(resolve){
+    var d=$('dlgPin');$('pinMsg').textContent=msg||'';$('pinInput').value='';
+    $('pinOk').onclick=function(){var v=$('pinInput').value.trim();if(!v){$('pinMsg').textContent='請輸入密碼';return}d.close();resolve(v)};
+    $('pinInput').onkeydown=function(e){if(e.key==='Enter'){e.preventDefault();$('pinOk').click()}};
+    d.showModal();$('pinInput').focus();
+  });
+}
+async function login(msg){
+  msg=msg||'';
+  for(;;){
+    if(!PIN)PIN=await askPin(msg);
+    try{
+      var res=await apiCall({op:'list',force:true});
+      if(res.ok){lsSet(PIN_KEY,PIN);remoteApply(res);return true}
+      PIN='';lsSet(PIN_KEY,'');
+      msg=res.error==='locked'?'密碼錯誤次數過多，請 10 分鐘後再試。':res.error==='not_configured'?'後端尚未設定密碼，請聯絡管理者。':'密碼不正確，請再輸入一次。';
+    }catch(e){dbErr='無法連線到資料庫，請確認網路後重新整理頁面。';fire();return false}
+  }
+}
+async function remoteRefresh(force){
+  var res=await apiCall(force?{op:'list',force:true}:{op:'list',rev:REV});
+  if(!res.ok){
+    if(res.error==='auth'||res.error==='locked'){PIN='';lsSet(PIN_KEY,'');await login('密碼已失效，請重新輸入。');return}
+    throw remoteErr(res);
+  }
+  if(res.changed!==false)remoteApply(res);
+}
+async function remoteWrite(ops){
+  var res=await apiCall(ops.length===1?ops[0]:{op:'batch',ops:ops});
+  if(!res.ok){
+    if(res.error==='auth'){PIN='';lsSet(PIN_KEY,'');await login('密碼已失效，請重新輸入。')}
+    throw remoteErr(res);
+  }
+  ops.forEach(function(o){
+    var list=data[o.collection]||(data[o.collection]=[]),i=list.findIndex(function(x){return x.id===o.id});
+    if(o.op==='delete'){if(i>=0)list.splice(i,1)}
+    else{var doc=Object.assign({id:o.id},o.data);if(i>=0)list[i]=doc;else list.push(doc)}
+  });
+  fire();
+  remoteRefresh(true).catch(function(){});
+}
+async function applyOps(chunk){
+  if(remote){
+    await remoteWrite(chunk.map(function(o){
+      if(o[0]!=='set')return {op:'delete',collection:o[1],id:o[2]};
+      var b=JSON.parse(JSON.stringify(o[2]));delete b.id;
+      return {op:'set',collection:o[1],id:o[2].id,data:b};
+    }));
+    return;
+  }
+  for(var i=0;i<chunk.length;i++){var o=chunk[i];if(o[0]==='set')await put(o[1],o[2]);else await del(o[1],o[2])}
+}
+function startPoll(){
+  clearInterval(pollT);
+  pollT=setInterval(function(){if(document.hidden||isFormMode())return;remoteRefresh(false).catch(function(){})},15000);
+  document.addEventListener('visibilitychange',function(){if(!document.hidden&&remote&&!isFormMode())remoteRefresh(false).catch(function(){})});
+}
+async function connectRemote(){
+  remote=true;mode='remote';isAdmin=false;canWrite=false;dl=fileSaver();PIN=lsGet(PIN_KEY);fire();
+  if(await login(''))startPoll();
+}
 function setting(k){var s=data.settings.find(function(x){return x.id==='app'});return s&&s[k]||''}
 
 /* ================= shell (single view) ================= */
 function setTab(){renderAll(true)}
 function renderNotice(){
   var bb=$('btnBackup');if(bb)bb.hidden=!isAdmin;
+  var lo=$('btnLogout');if(lo){lo.hidden=!remote;lo.textContent=(isAdmin?'管理者':'同仁')+'・切換身分'}
   var n=$('notice');n.textContent='';
+  if(remote&&!loaded&&!dbErr)n.appendChild(h('div',{class:'note soft',text:'連線中，請稍候…'}));
   if(mode==='local')n.appendChild(h('div',{class:'note soft',text:'示範模式：資料只存在這台裝置，不會與其他人共用。'}));
   if(mode==='shared'&&!canWrite)n.appendChild(h('div',{class:'note soft',text:'你目前只有檢視權限，無法登記或修改。請管理者將你的權限調整為 Contributor。'}));
   if(dbErr)n.appendChild(h('div',{class:'note err',text:dbErr}));
@@ -1015,10 +1123,11 @@ $('bkRestore').onclick=async function(){
   dels.forEach(function(d){ops.push(['del',d[0],d[1]])});
   var prog=$('bkProgress'),btn=$('bkRestore'),done=0;btn.disabled=true;$('bkFile').disabled=true;
   try{
-    for(var i=0;i<ops.length;i++){
-      var o=ops[i];
-      if(o[0]==='set')await put(o[1],o[2]);else await del(o[1],o[2]);
-      done++;if(done%10===0||done===ops.length)prog.textContent='處理中… '+done+' / '+ops.length;
+    var step=remote?100:1;
+    for(var i=0;i<ops.length;i+=step){
+      await applyOps(ops.slice(i,i+step));
+      done=Math.min(ops.length,i+step);
+      prog.textContent='處理中… '+done+' / '+ops.length;
     }
     prog.textContent='完成：已處理 '+done+' 筆。';toast('已完成還原');bkParsed=null;$('bkFile').value='';$('bkPreview').textContent='';$('bkFullWrap').hidden=true;bkRefresh();
   }catch(e){
@@ -1078,6 +1187,9 @@ function exportPaper(){
   dl.save({filename:'車輛駕駛記錄表_'+stamp+'.html',data:html}).then(function(){toast('已匯出紙本格式（共 '+total+' 趟）')},function(e){if(!e||e.code!=='declined')toast('無法下載檔案')});
 }
 $('bkPaper').onclick=exportPaper;
+
+$('btnLogout').onclick=async function(){PIN='';lsSet(PIN_KEY,'');await login('請輸入密碼（登記密碼或管理者密碼）。')};
+$('dlgPin').addEventListener('cancel',function(e){e.preventDefault()});
 
 /* ---- boot ---- */
 renderAll(true);

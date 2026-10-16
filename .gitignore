@@ -1,4 +1,4 @@
-﻿# 備份檔、匯出檔與真實資料不放進倉庫
+# 備份檔、匯出檔與真實資料不放進倉庫
 借用系統備份_*.json
 車輛駕駛記錄表_*.html
 *.csv
@@ -7,3 +7,11 @@
 *.jpeg
 *.png
 *.zip
+
+# local only: initial data (contains names), mock files for back-end tests, one-time edit script, pre-edit backup
+車輛系統初始資料*.json
+apps-script/mocks.js
+apps-script/server-test*.html
+apps-script/client-remote-test.html
+apps-script/add-remote.ps1
+*.before-remote.html
