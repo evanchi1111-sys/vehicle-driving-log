@@ -73,6 +73,11 @@ header.top .wrap{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;ju
 .note{border-radius:6px;padding:8px 12px;font-size:13px}
 .note.soft{background:var(--warn-bg);color:var(--warn)}
 .note.err{background:var(--bad-bg);color:var(--bad)}
+.loading{display:flex;flex-direction:column;align-items:center;gap:14px;padding:44px 16px;text-align:center}
+.loading .spin{width:38px;height:38px;border:4px solid #d7dee8;border-top-color:#1b4b7a;border-radius:50%;animation:spin .9s linear infinite}
+.loading b{font-size:17px}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.loading .spin{animation-duration:3s}}
 .intro{color:var(--mute);font-size:13px;padding-block:10px 0}
 .intro b{color:var(--ink)}
 main{padding-block:12px 36px}
@@ -753,8 +758,11 @@ function logSheet(v,limit){
     h('div',{class:'sheetfoot',text:'備註：車況檢查包含儀表（油表、水溫及儀表各項燈號）、煞車、喇叭、燈號等。外觀、車況欄：✓ 表示正常，✕ 表示有異常。'}));
 }
 
+function isLoading(){return mode==='connecting'||(remote&&!loaded&&!dbErr)}
 function renderCars(){
   var root=$('carMain');root.textContent='';
+  if(isLoading()){root.appendChild(h('div',{class:'panel loading',role:'status','aria-live':'polite'},h('div',{class:'spin','aria-hidden':'true'}),h('b',{text:'正在連線並載入車輛資料…'}),h('div',{class:'empty',text:cv.plate?'載入完成後會自動開啟 '+cv.plate+' 的頁面，請稍候。':'請稍候，不需要重新整理。'})));return}
+  if(dbErr&&!loaded&&remote){root.appendChild(h('div',{class:'panel loading'},h('b',{text:'無法連線到資料庫'}),h('div',{class:'empty',text:'請確認手機網路後再試一次。'}),h('button',{type:'button',class:'primary',text:'重新連線',onclick:function(){location.reload()}})));return}
   if(cv.mode==='list')root.appendChild(carList());
   else{
     var v=vehicle(cv.plate);
