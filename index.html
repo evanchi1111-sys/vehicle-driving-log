@@ -656,7 +656,7 @@ function carList(){
   wrap.appendChild(h('div',{class:'sec-title'},h('h2',{text:'車輛'}),
     h('div',{class:'btnrow'},
       isAdmin?h('button',{type:'button',text:'＋ 新增車輛',disabled:!canWrite,onclick:function(){addBox.hidden=!addBox.hidden}}):null,
-      h('button',{type:'button',text:'匯出紙本格式（可列印）',onclick:exportPaper}),h('button',{type:'button',text:'匯出駕駛記錄（CSV）',onclick:exportCars}),isAdmin&&window.XLSX?h('button',{type:'button',text:'匯入單位及使用人',disabled:!canWrite,onclick:importRoster}):null)));
+      h('button',{type:'button',text:'匯出紙本格式（可列印）',onclick:exportPaper}),isAdmin?h('button',{type:'button',text:'列印用 QR Code',onclick:exportQrSheet}):null,h('button',{type:'button',text:'匯出駕駛記錄（CSV）',onclick:exportCars}),isAdmin&&window.XLSX?h('button',{type:'button',text:'匯入單位及使用人',disabled:!canWrite,onclick:importRoster}):null)));
   var plate=h('input',{type:'text',id:'nvPlate',placeholder:'例如 ABC-1234',autocapitalize:'characters'});
   var name=h('input',{type:'text',id:'nvName',placeholder:'車輛說明（選填）'});
   var km=h('input',{type:'number',id:'nvKm',inputmode:'numeric',placeholder:'目前里程數'});
@@ -903,6 +903,56 @@ $('qrDownload').onclick=function(){
   g.font='18px sans-serif';g.fillText('掃描登記出發／歸還',180,365);
   c.toBlob(function(b){dl.save({filename:'QR_'+qrPlate+'.png',data:b}).catch(function(e){if(!e||e.code!=='declined')toast('無法下載檔案')})},'image/png');
 };
+
+/* ================= printable QR code labels ================= */
+function qrDataUrl(text){
+  var box=document.createElement('div');box.style.cssText='position:fixed;left:-9999px;top:0';document.body.appendChild(box);
+  try{
+    new window.QRCode(box,{text:text,width:420,height:420,correctLevel:window.QRCode.CorrectLevel.M});
+    var c=box.querySelector('canvas');
+    return c?c.toDataURL('image/png'):'';
+  }finally{box.remove()}
+}
+function qrLabelHtml(v,img){
+  return '<div class="label"><div class="lt">公務車　返回登記</div><img class="qr" alt="QR Code" src="'+img+'">'
+    +'<div class="plate">'+escHtml(v.plate)+'</div>'+(v.name?'<div class="vn">'+escHtml(v.name)+'</div>':'')
+    +'<ol class="how"><li>用手機掃描上方 QR Code</li><li>按「返回登記」</li><li>對照儀表板填寫里程與時間</li></ol>'
+    +'<div class="ft">用完車後請立即登記</div></div>';
+}
+function exportQrSheet(){
+  if(!dl){toast('此檢視環境無法下載檔案');return}
+  if(!window.QRCode){toast('QR Code 產生器載入失敗，請重新整理頁面');return}
+  var vs=data.vehicles.slice().sort(function(a,b){return a.id<b.id?-1:1});
+  if(!vs.length){toast('尚未建立車輛');return}
+  var base=setting('baseUrl');
+  if(!base&&/^https?:/.test(location.href))base=location.href;
+  base=String(base||'').split('#')[0];
+  if(!base){toast('請先在任一台車的「QR Code」視窗貼上並儲存系統網址');return}
+  var labels=[];
+  vs.forEach(function(v){var img=qrDataUrl(base+'#car-'+v.plate);if(!img)return;labels.push(qrLabelHtml(v,img),qrLabelHtml(v,img))});
+  if(!labels.length){toast('無法產生 QR Code');return}
+  var pages='';
+  for(var i=0;i<labels.length;i+=4)pages+='<section class="sheet">'+labels.slice(i,i+4).join('')+'</section>';
+  var d=new Date(),stamp=d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+  var html='<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><title>車輛 QR Code 列印版 '+stamp+'</title><style>'
+    +'@page{size:A4 portrait;margin:10mm}*{box-sizing:border-box}'
+    +'body{margin:0;font-family:"Microsoft JhengHei","PingFang TC","Noto Sans TC",sans-serif;color:#000;background:#fff}'
+    +'.tip{margin:10px auto;max-width:190mm;padding:8px 12px;border:1px solid #c9a227;background:#fff7d6;font-size:13px;line-height:1.6}'
+    +'.sheet{display:grid;grid-template-columns:repeat(2,90mm);grid-auto-rows:118mm;gap:6mm;justify-content:center;align-content:start;page-break-after:always;padding-top:4mm}'
+    +'.sheet:last-of-type{page-break-after:auto}'
+    +'.label{border:1.5px dashed #555;border-radius:4mm;padding:5mm 4mm;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:space-between;overflow:hidden}'
+    +'.lt{font-size:15pt;font-weight:700;letter-spacing:.15em}'
+    +'.qr{width:62mm;height:62mm;image-rendering:pixelated}'
+    +'.plate{font-family:Consolas,"Cascadia Mono",monospace;font-size:26pt;font-weight:700;letter-spacing:.06em;line-height:1.1}'
+    +'.vn{font-size:10pt;color:#333}'
+    +'.how{margin:0;padding-left:5mm;text-align:left;font-size:10.5pt;line-height:1.6}'
+    +'.ft{font-size:9.5pt;font-weight:700}'
+    +'@media print{.tip{display:none}}'
+    +'</style></head><body>'
+    +'<div class="tip"><b>列印方式：</b>用瀏覽器開啟這個檔案，按 Ctrl＋P，紙張選 A4、縮放 100%，並勾選「背景圖形」。每台車有 2 張相同的標籤，沿虛線剪下，貼在車內明顯的位置（例如擋風玻璃內側與置物箱）。此提示不會被印出。</div>'
+    +pages+'</body></html>';
+  dl.save({filename:'車輛QRCode列印版_'+stamp+'.html',data:html}).then(function(){toast('已匯出 '+vs.length+' 台車、共 '+labels.length+' 張標籤')},function(e){if(!e||e.code!=='declined')toast('無法下載檔案')});
+}
 
 /* ================= backup and restore (admin) ================= */
 var BK_LABEL={vehicles:'車輛',vehicleLogs:'車輛行車紀錄',vehicleRepairs:'外觀、車況修復紀錄',vehicleDeleted:'已刪除的行車紀錄',roster:'單位及使用人名單',places:'往返地點清單',settings:'系統設定'};
