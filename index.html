@@ -835,9 +835,9 @@ function renderCars(){
   }
 }
 function carList(){
-  var wrap=h('div');
+  var wrap=h('div'),tools=h('div',{style:'margin-top:20px'});
   var addBox=h('div',{class:'panel formcard',hidden:true,style:'margin-bottom:12px'});
-  wrap.appendChild(h('div',{class:'sec-title'},h('h2',{text:'車輛'}),
+  tools.appendChild(h('div',{class:'sec-title'},h('h2',{text:'匯出與管理'}),
     h('div',{class:'btnrow'},
       isAdmin?h('button',{type:'button',text:'＋ 新增車輛',disabled:!canWrite,onclick:function(){addBox.hidden=!addBox.hidden}}):null,
       h('button',{type:'button',text:'匯出紙本格式（可列印）',onclick:exportPaper}),isAdmin?h('button',{type:'button',text:'列印用 QR Code',onclick:exportQrSheet}):null,h('button',{type:'button',text:'匯出駕駛記錄（CSV）',onclick:exportCars}),isAdmin&&window.XLSX?h('button',{type:'button',text:'匯入單位及使用人',disabled:!canWrite,onclick:importRoster}):null)));
@@ -855,9 +855,10 @@ function carList(){
     if(!mu.get()){toast('請選擇或輸入管理單位');return}
     try{await put('vehicles',{id:p,plate:p,name:name.value.trim(),mgmtUnit:mu.get(),lastMileage:km.value===''?null:+km.value});toast('已新增 '+p);addBox.hidden=true}catch(e){writeErr(e)}
   }})));
-  wrap.appendChild(addBox);wrap.appendChild(rosterPanel());wrap.appendChild(placesPanel());
+  tools.appendChild(addBox);tools.appendChild(rosterPanel());tools.appendChild(placesPanel());
+  wrap.appendChild(h('div',{class:'sec-title'},h('h2',{text:'車輛'})));
   var grid=h('div',{class:'cars'});
-  if(!data.vehicles.length)grid.appendChild(h('div',{class:'panel formcard'},h('h2',{text:'尚未建立車輛'}),h('p',{class:'empty',text:isAdmin?'按「新增車輛」輸入車號，系統就會產生可貼在車上的 QR Code。':'請管理者先新增車輛。'})));
+  if(!data.vehicles.length)grid.appendChild(h('div',{class:'panel formcard'},h('h2',{text:'尚未建立車輛'}),h('p',{class:'empty',text:isAdmin?'請到頁面最下方按「＋ 新增車輛」輸入車號，系統就會產生可貼在車上的 QR Code。':'請管理者先新增車輛。'})));
   var vs=data.vehicles.slice().sort(function(a,b){return a.id<b.id?-1:1});
   vs.forEach(function(v){
     var kv=h('dl',{class:'kv'}),lt=logsOf(v.id)[0];
@@ -881,6 +882,7 @@ function carList(){
     wrap.appendChild(logSheet(vehicle(sheetPlate),40));
   }
   wrap.appendChild(deletedPanel()||document.createComment(''));
+  wrap.appendChild(tools);
   return wrap;
 }
 var deletedOpen=false;
