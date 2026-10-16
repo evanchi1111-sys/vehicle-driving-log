@@ -773,13 +773,16 @@ function carList(){
   var plate=h('input',{type:'text',id:'nvPlate',placeholder:'例如 ABC-1234',autocapitalize:'characters'});
   var name=h('input',{type:'text',id:'nvName',placeholder:'車輛說明（選填）'});
   var km=h('input',{type:'number',id:'nvKm',inputmode:'numeric',placeholder:'目前里程數'});
+  var mu=combo('nvUnit','其他單位（自行輸入）','請輸入管理單位');mu.fill(rosterUnits(),'');
   addBox.appendChild(h('div',{class:'two'},h('label',{class:'f'},h('span',{text:'車號'}),plate),h('label',{class:'f'},h('span',{text:'車輛說明'}),name)));
+  addBox.appendChild(h('div',{class:'f'},h('span',null,'管理單位 ',h('em',{text:'*'})),mu.node));
   addBox.appendChild(h('label',{class:'f'},h('span',{text:'目前里程數（公里，選填）'}),km));
   addBox.appendChild(h('div',{class:'actions'},h('button',{type:'button',class:'primary',text:'新增',onclick:async function(){
     var p=plate.value.trim().toUpperCase();
     if(!/^[A-Z0-9][A-Z0-9\-]{2,15}$/.test(p)){toast('車號只能使用英數字與連字號');return}
     if(vehicle(p)){toast('這台車已存在');return}
-    try{await put('vehicles',{id:p,plate:p,name:name.value.trim(),lastMileage:km.value===''?null:+km.value});toast('已新增 '+p);addBox.hidden=true}catch(e){writeErr(e)}
+    if(!mu.get()){toast('請選擇或輸入管理單位');return}
+    try{await put('vehicles',{id:p,plate:p,name:name.value.trim(),mgmtUnit:mu.get(),lastMileage:km.value===''?null:+km.value});toast('已新增 '+p);addBox.hidden=true}catch(e){writeErr(e)}
   }})));
   wrap.appendChild(addBox);wrap.appendChild(rosterPanel());wrap.appendChild(placesPanel());
   var grid=h('div',{class:'cars'});
@@ -791,7 +794,7 @@ function carList(){
     kv.appendChild(h('dt',{text:'最近一趟'}));kv.appendChild(h('dd',{text:lt?mdOf(lt.date)+'　'+lt.unit+' '+lt.driver:'尚無紀錄'}));
     kv.appendChild(h('dt',{text:'狀況'}));kv.appendChild(h('dd',null,stateLine(v.id)));
     grid.appendChild(h('div',{class:'panel vcard'},
-      h('div',{class:'vrow'},h('div',null,h('div',{class:'plate',text:v.plate}),h('div',{class:'empty',text:v.name||''})),statusPill(v.id)),
+      h('div',{class:'vrow'},h('div',null,h('div',{class:'plate',text:v.plate}),h('div',{class:'empty',text:v.name||''}),h('div',{class:'empty',text:'管理單位：'+(v.mgmtUnit||'未設定')})),statusPill(v.id)),
       kv,
       h('div',{class:'btnrow'},
         h('button',{type:'button',class:'primary',text:'返回登記',disabled:!canWrite,onclick:function(){goto('trip',v.id)}}),
@@ -846,11 +849,21 @@ function carDetail(v){
   kv.appendChild(h('dt',{text:'上次返回里程'}));kv.appendChild(h('dd',{class:'mono',text:lastMileage(v.id)===''?'—':lastMileage(v.id)+' 公里'}));
   kv.appendChild(h('dt',{text:'狀況'}));kv.appendChild(h('dd',null,stateLine(v.id)));
   var head=h('div',{class:'panel vhead'},
-    h('div',{class:'vrow'},h('div',null,h('div',{class:'plate',text:v.plate}),h('div',{class:'empty',text:v.name||''})),statusPill(v.id)),
+    h('div',{class:'vrow'},h('div',null,h('div',{class:'plate',text:v.plate}),h('div',{class:'empty',text:v.name||''}),h('div',{class:'empty',text:'管理單位：'+(v.mgmtUnit||'未設定')})),statusPill(v.id)),
     lastBox(v.id),kv,
     h('button',{type:'button',class:'primary',style:'min-height:52px;font-size:17px',disabled:!canWrite,text:'返回登記',onclick:function(){goto('trip',v.id)}}),h('button',{type:'button',disabled:!canWrite,text:'補登一筆（忘記登記時）',onclick:function(){gotoTrip(v.id,{backfill:true})}}));
   return h('div',{class:'vpage',style:'max-width:760px'},
-    h('div',null,h('button',{type:'button',class:'ghost',text:'← 車輛清單',onclick:function(){cv={mode:'list'};renderCars()}})),head,repairPanel(v),logSheet(v,10),deleteVehiclePanel(v));
+    h('div',null,h('button',{type:'button',class:'ghost',text:'← 車輛清單',onclick:function(){cv={mode:'list'};renderCars()}})),head,editUnitPanel(v),repairPanel(v),logSheet(v,10),deleteVehiclePanel(v));
+}
+function editUnitPanel(v){
+  if(!(isAdmin&&canWrite))return document.createComment('');
+  var uc=combo('mgUnit','其他單位（自行輸入）','請輸入管理單位');uc.fill(rosterUnits(),v.mgmtUnit||'');
+  return h('div',{class:'panel formcard',style:'margin-top:12px'},
+    h('div',{class:'f'},h('span',{text:'管理單位'}),uc.node),
+    h('div',{class:'actions'},h('button',{type:'button',text:'儲存管理單位',onclick:async function(){
+      if(!uc.get()){toast('請選擇或輸入管理單位');return}
+      try{await put('vehicles',Object.assign({},v,{mgmtUnit:uc.get()}));toast('已更新管理單位')}catch(e){writeErr(e)}
+    }})));
 }
 function deleteVehiclePanel(v){
   if(!(isAdmin&&canWrite))return document.createComment('');
@@ -1056,7 +1069,7 @@ function qrDataUrl(text){
 }
 function qrLabelHtml(v,img){
   return '<div class="label"><div class="lt">公務車　返回登記</div><img class="qr" alt="QR Code" src="'+img+'">'
-    +'<div class="plate">'+escHtml(v.plate)+'</div>'+(v.name?'<div class="vn">'+escHtml(v.name)+'</div>':'')
+    +'<div class="plate">'+escHtml(v.plate)+'</div>'+(v.name?'<div class="vn">'+escHtml(v.name)+'</div>':'')+(v.mgmtUnit?'<div class="vn">管理單位：'+escHtml(v.mgmtUnit)+'</div>':'')
     +'<ol class="how"><li>用手機掃描上方 QR Code</li><li>按「返回登記」</li><li>對照儀表板填寫里程與時間</li></ol>'
     +'<div class="ft">用完車後請立即登記</div></div>';
 }
@@ -1189,7 +1202,7 @@ function paperPage(v,trips,pageNo,pages){
   return '<section class="page"><table>'
     +'<colgroup><col style="width:9%"><col style="width:9%"><col style="width:12%"><col style="width:21%"><col style="width:17%"><col style="width:12%"><col style="width:10%"><col style="width:10%"></colgroup>'
     +'<thead><tr><th colspan="8" class="title">車輛駕駛記錄表</th></tr>'
-    +'<tr><th colspan="8" class="plate">車號 :'+escHtml(v.plate)+(v.name?'　'+escHtml(v.name):'')+'</th></tr>'
+    +'<tr><th colspan="8" class="plate">車號 :'+escHtml(v.plate)+(v.name?'　'+escHtml(v.name):'')+(v.mgmtUnit?'　管理單位：'+escHtml(v.mgmtUnit):'')+'</th></tr>'
     +'<tr><th>日期</th><th>單位</th><th>駕駛人</th><th>往返地點</th><th>出發里程數<br>返回里程數</th><th>出發時間<br>返回時間</th><th>外觀</th><th>車況*</th></tr></thead>'
     +'<tbody>'+rows+'</tbody>'
     +'<tfoot><tr><td colspan="8" class="note">備註：車況檢查包含儀表（油表、水溫及儀表各項燈號）、煞車、喇叭、燈號等。外觀、車況欄：✓ 表示正常，✕ 表示有異常。</td></tr></tfoot>'
