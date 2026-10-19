@@ -36,7 +36,8 @@
 |---|---|
 | `app.template.html` | 主程式（供發佈為 Claude Artifact；頁面內容片段，平台會自動加上外層） |
 | `index.html` | 完整網頁文件，可直接用瀏覽器開啟或放到靜態網站空間（由 `build.ps1` 產生） |
-| `build.ps1` | 由 `app.template.html` 產生 `index.html` |
+| `build.ps1` | 由 `app.template.html` 產生 `index.html`，並把 QR Code 與 Excel 工具的網址換成 `vendor/` 內的檔案 |
+| `vendor/` | QR Code 與 Excel 工具的程式檔（放在專案內，網頁不需要連到外部網站載入；版本與來源見 `vendor/README.md`） |
 | `config.js` | 連線設定：`window.VEHICLE_API` 填入 Google Apps Script 網頁應用程式網址；留空為示範模式 |
 | `apps-script/Code.gs` | Google Apps Script 後端（密碼檢查、權限、寫入 Google 試算表） |
 | `docs/Google設定步驟.md` | 一步一步的 Google 設定說明 |
