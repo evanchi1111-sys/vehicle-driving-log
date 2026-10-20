@@ -690,7 +690,7 @@ function statusPill(p){return null}
 function lastBox(p,withState){
   var l=logsOf(p).find(function(x){return x.status==='returned'&&x.retMileage!=null}),v=vehicle(p),km=lastMileage(p);
   var sub=l?mdOf(l.date)+' '+(l.retTime||'')+'　'+l.unit+' '+l.driver+'　'+routeText(l):(km!==''?'建檔里程，尚無行車紀錄':'尚無里程資料');
-  return h('div',{class:'lastbox'},h('div',{class:'lb-k',text:'上次返回里程'}),h('div',{class:'lb-v mono',text:km===''?'—':km+' 公里'}),h('div',{class:'lb-s',text:sub}),withState?h('div',{class:'lb-st'},'狀況　',stateLine(p)):null);
+  return h('div',{class:'lastbox'},h('div',{class:'lb-k',text:'上次返回儀錶板上里程'}),h('div',{class:'lb-v mono',text:km===''?'—':km+' 公里'}),h('div',{class:'lb-s',text:sub}),withState?h('div',{class:'lb-st'},'狀況　',stateLine(p)):null);
 }
 function markText(x,note){return x==='bad'?h('span',{class:'mk bad',text:'✕',title:note||'異常'}):h('span',{class:'mk ok',text:'✓',title:'正常'})}
 function vState(p){
@@ -986,7 +986,7 @@ function carList(){
   var vs=data.vehicles.slice().sort(function(a,b){return a.id<b.id?-1:1});
   vs.forEach(function(v){
     var kv=h('dl',{class:'kv'}),lt=logsOf(v.id)[0];
-    kv.appendChild(h('dt',{text:'上次返回里程'}));kv.appendChild(h('dd',{class:'mono',text:lastMileage(v.id)===''?'—':lastMileage(v.id)+' 公里'}));
+    kv.appendChild(h('dt',{text:'上次返回儀錶板上里程'}));kv.appendChild(h('dd',{class:'mono',text:lastMileage(v.id)===''?'—':lastMileage(v.id)+' 公里'}));
     kv.appendChild(h('dt',{text:'最近一趟'}));kv.appendChild(h('dd',{text:lt?mdOf(lt.date)+'　'+lt.unit+' '+lt.driver:'尚無紀錄'}));
     kv.appendChild(h('dt',{text:'狀況'}));kv.appendChild(h('dd',null,stateLine(v.id)));
     grid.appendChild(h('div',{class:'panel vcard'},
