@@ -680,6 +680,7 @@ function monthPanel(v,open){
   notes.forEach(function(t){box.appendChild(h('div',{class:'mnote',text:t}))});
   return box;
 }
+function ymdOf(s){if(!s)return '';var d=pd(s);return d.getFullYear()+'/'+pad(d.getMonth()+1)+'/'+pad(d.getDate())}
 function mdOf(s){if(!s)return '';var d=pd(s);return (d.getMonth()+1)+'/'+d.getDate()}
 function goto(m,p){cv={mode:m,plate:p};renderCars();window.scrollTo(0,0)}
 function gotoTrip(p,o){cv=Object.assign({mode:'trip',plate:p},o||{});renderCars();window.scrollTo(0,0)}
@@ -933,7 +934,7 @@ function logSheet(v,limit){
     var ret=l.status==='returned';
     var retT=ret?((l.retDate&&l.retDate!==l.date?mdOf(l.retDate)+' ':'')+l.retTime):'—';
     tb.appendChild(h('tr',null,
-      h('td',{rowspan:2},mdOf(l.date),l.backfill?h('span',{class:'bftag',title:'補登：'+(l.backfillReason||''),text:'補'}):null,l.editedAt?h('span',{class:'bftag ed',title:'已修改：'+(l.editedReason||''),text:'改'}):null),h('td',{rowspan:2,text:l.unit}),h('td',{rowspan:2,text:drv(l)}),h('td',{rowspan:2,class:'l',text:routeText(l)}),
+      h('td',{rowspan:2,style:'white-space:nowrap'},ymdOf(l.date),l.backfill?h('span',{class:'bftag',title:'補登：'+(l.backfillReason||''),text:'補'}):null,l.editedAt?h('span',{class:'bftag ed',title:'已修改：'+(l.editedReason||''),text:'改'}):null),h('td',{rowspan:2,text:l.unit}),h('td',{rowspan:2,text:drv(l)}),h('td',{rowspan:2,class:'l',text:routeText(l)}),
       h('td',{class:'mono',text:l.outMileage+' 公里'}),h('td',{class:'mono',text:l.outTime}),
       h('td',{rowspan:2},markText(l.look,l.note)),h('td',{rowspan:2},markText(l.cond,l.note)),adm?h('td',{rowspan:2},h('button',{type:'button',class:'ghost',style:'min-height:28px;padding:0 8px',text:'編輯',onclick:function(){gotoTrip(v.id,{editId:l.id})}})):null));
     tb.appendChild(h('tr',null,
@@ -1406,7 +1407,7 @@ function paperPage(v,trips,pageNo,pages){
     if(l){
       var ret=l.status==='returned';
       var retT=ret?((l.retDate&&l.retDate!==l.date?mdOf(l.retDate)+' ':'')+(l.retTime||'')):'';
-      rows+='<tr><td rowspan="2">'+escHtml(mdOf(l.date))+'</td><td rowspan="2">'+escHtml(l.unit)+'</td><td rowspan="2">'+escHtml(l.driver)+(l.title?'<br><span class="ttl">'+escHtml(l.title)+'</span>':'')+'</td><td rowspan="2" class="l">'+escHtml(routeText(l))+'</td>'
+      rows+='<tr><td rowspan="2">'+escHtml(ymdOf(l.date))+'</td><td rowspan="2">'+escHtml(l.unit)+'</td><td rowspan="2">'+escHtml(l.driver)+(l.title?'<br><span class="ttl">'+escHtml(l.title)+'</span>':'')+'</td><td rowspan="2" class="l">'+escHtml(routeText(l))+'</td>'
         +'<td class="n">'+escHtml(l.outMileage)+' 公里</td><td class="n">'+escHtml(l.outTime)+'</td>'
         +'<td rowspan="2" class="mk'+(l.look==='bad'?' bad':'')+'">'+(l.look==='bad'?'✕':'✓')+'</td><td rowspan="2" class="mk'+(l.cond==='bad'?' bad':'')+'">'+(l.cond==='bad'?'✕':'✓')+'</td></tr>'
         +'<tr><td class="n">'+(ret?escHtml(l.retMileage)+' 公里':'使用中')+'</td><td class="n">'+escHtml(retT)+'</td></tr>';
@@ -1415,7 +1416,7 @@ function paperPage(v,trips,pageNo,pages){
     }
   }
   return '<section class="page"><table>'
-    +'<colgroup><col style="width:9%"><col style="width:9%"><col style="width:12%"><col style="width:21%"><col style="width:17%"><col style="width:12%"><col style="width:10%"><col style="width:10%"></colgroup>'
+    +'<colgroup><col style="width:14%"><col style="width:8%"><col style="width:12%"><col style="width:19%"><col style="width:15%"><col style="width:12%"><col style="width:10%"><col style="width:10%"></colgroup>'
     +'<thead><tr><th colspan="8" class="title">車輛駕駛記錄表</th></tr>'
     +'<tr><th colspan="8" class="plate">車號 :'+escHtml(v.plate)+(v.name?'　'+escHtml(v.name):'')+(v.mgmtUnit?'　管理單位：'+escHtml(v.mgmtUnit):'')+'</th></tr>'
     +'<tr><th>日期</th><th>單位</th><th>駕駛人</th><th>往返地點</th><th>出發里程數<br>返回里程數</th><th>出發時間<br>返回時間</th><th>外觀</th><th>車況*</th></tr></thead>'
