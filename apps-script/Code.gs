@@ -211,9 +211,9 @@ function rebuildView_() {
     var x = (a.date || '') + ' ' + (a.outTime || ''), y = (b.date || '') + ' ' + (b.outTime || '');
     return x < y ? -1 : x > y ? 1 : 0;
   });
-  var rows = [['車號', '日期', '單位', '駕駛人', '往返地點', '出發里程數', '返回里程數', '出發時間', '返回時間', '外觀', '車況', '說明', '補登原因', '修改原因']];
+  var rows = [['車號', '日期', '單位', '駕駛人', '職稱', '往返地點', '出發里程數', '返回里程數', '出發時間', '返回時間', '外觀', '車況', '說明', '補登原因', '修改原因']];
   logs.forEach(function (l) {
-    rows.push([l.plate || '', l.date || '', l.unit || '', l.driver || '', l.route || '', l.outMileage == null ? '' : l.outMileage,
+    rows.push([l.plate || '', l.date || '', l.unit || '', l.driver || '', l.title || '', l.route || '', l.outMileage == null ? '' : l.outMileage,
       l.retMileage == null ? '' : l.retMileage, l.outTime || '', l.retTime || '',
       l.look === 'bad' ? '✕' : '✓', l.cond === 'bad' ? '✕' : '✓', l.note || '', l.backfillReason || '', l.editedReason || '']);
   });
@@ -292,9 +292,9 @@ function csvRows_() {
     var x = (a.date || '') + ' ' + (a.outTime || ''), y = (b.date || '') + ' ' + (b.outTime || '');
     return x < y ? -1 : x > y ? 1 : 0;
   });
-  var rows = [['車號', '日期', '單位', '駕駛人', '往返地點', '出發里程數', '返回里程數', '出發時間', '返回時間', '外觀', '車況', '說明', '補登原因', '修改原因']];
+  var rows = [['車號', '日期', '單位', '駕駛人', '職稱', '往返地點', '出發里程數', '返回里程數', '出發時間', '返回時間', '外觀', '車況', '說明', '補登原因', '修改原因']];
   logs.forEach(function (l) {
-    rows.push([l.plate || '', l.date || '', l.unit || '', l.driver || '', l.route || '', l.outMileage == null ? '' : l.outMileage,
+    rows.push([l.plate || '', l.date || '', l.unit || '', l.driver || '', l.title || '', l.route || '', l.outMileage == null ? '' : l.outMileage,
       l.retMileage == null ? '' : l.retMileage, l.outTime || '', l.retTime || '',
       l.look === 'bad' ? '✕' : '✓', l.cond === 'bad' ? '✕' : '✓', l.note || '', l.backfillReason || '', l.editedReason || '']);
   });

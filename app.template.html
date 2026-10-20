@@ -689,7 +689,7 @@ window.addEventListener('hashchange',fromHash);
 function statusPill(p){return null}
 function lastBox(p,withState){
   var l=logsOf(p).find(function(x){return x.status==='returned'&&x.retMileage!=null}),v=vehicle(p),km=lastMileage(p);
-  var sub=l?mdOf(l.date)+' '+(l.retTime||'')+'　'+l.unit+' '+l.driver+'　'+routeText(l):(km!==''?'建檔里程，尚無行車紀錄':'尚無里程資料');
+  var sub=l?mdOf(l.date)+' '+(l.retTime||'')+'　'+l.unit+' '+drv(l)+'　'+routeText(l):(km!==''?'建檔里程，尚無行車紀錄':'尚無里程資料');
   return h('div',{class:'lastbox'},h('div',{class:'lb-k',text:'上次返回儀錶板上里程'}),h('div',{class:'lb-v mono',text:km===''?'—':km+' 公里'}),h('div',{class:'lb-s',text:sub}),withState?h('div',{class:'lb-st'},'狀況　',stateLine(p)):null);
 }
 function markText(x,note){return x==='bad'?h('span',{class:'mk bad',text:'✕',title:note||'異常'}):h('span',{class:'mk ok',text:'✓',title:'正常'})}
@@ -739,6 +739,9 @@ function remember(k,v){try{localStorage.setItem('rc.'+k,v)}catch(e){}}
 function roster(){var d=data.roster.find(function(x){return x.id==='current'});return (d&&d.rows)||[]}
 function rosterUnits(){var s={},o=[];roster().forEach(function(r){if(r.unit&&!s[r.unit]){s[r.unit]=1;o.push(r.unit)}});return o}
 function rosterNames(u){return roster().filter(function(r){return r.unit===u&&r.name}).map(function(r){return r.name})}
+function rosterTitle(u,n){var r=roster().find(function(x){return x.unit===u&&x.name===n});return (r&&r.title)||''}
+/* 駕駛人顯示：姓名（職稱） */
+function drv(l){return (l.driver||'')+(l.title?'（'+l.title+'）':'')}
 function combo(id,otherLabel,ph){
   var sel=h('select',{id:id}),txt=h('input',{type:'text',id:id+'T',placeholder:ph||'手動輸入',hidden:true,style:'margin-top:6px'});
   function fill(opts,cur){
@@ -754,16 +757,23 @@ function combo(id,otherLabel,ph){
   sel.addEventListener('change',function(){txt.hidden=sel.value!=='__o';if(!txt.hidden)txt.focus()});
   return {node:h('div',null,sel,txt),sel:sel,fill:fill,get:function(){return sel.value==='__o'?txt.value.trim():sel.value}};
 }
-function personFields(initUnit,initName){
-  var units=rosterUnits();
+function personFields(initUnit,initName,initTitle){
+  var units=rosterUnits(),tEdited=false;
+  var t=h('input',{type:'text',id:'oTitle',value:initTitle||'',list:'dlTitle',autocomplete:'off',maxlength:'30',placeholder:'例如 工程師（選填）'});
+  t.addEventListener('input',function(){tEdited=true});
+  var title={node:t,get value(){return t.value}};
   if(!units.length){
     var u=h('input',{type:'text',id:'oUnit',value:initUnit,list:'dlUnit',autocomplete:'off'}),d=h('input',{type:'text',id:'oDriver',value:initName,list:'dlDrv',autocomplete:'off'});
-    return {unit:{node:u,get value(){return u.value}},driver:{node:d,get value(){return d.value}}};
+    d.addEventListener('input',function(){if(!tEdited)t.value=''});   // 換了駕駛人，不沿用上一位的職稱
+    return {unit:{node:u,get value(){return u.value}},driver:{node:d,get value(){return d.value}},title:title};
   }
   var uc=combo('oUnit','其他單位（自行輸入）','請輸入單位代碼'),dc=combo('oDriver','其他（自行輸入姓名）','請輸入姓名');
   uc.fill(units,initUnit);dc.fill(rosterNames(uc.get()),initName);
-  uc.sel.addEventListener('change',function(){dc.fill(rosterNames(uc.get()),'')});
-  return {unit:{node:uc.node,get value(){return uc.get()}},driver:{node:dc.node,get value(){return dc.get()}}};
+  function sync(){var tt=rosterTitle(uc.get(),dc.get());if(tt){t.value=tt;tEdited=false}else if(!tEdited)t.value=''}
+  if(!initTitle)sync();
+  uc.sel.addEventListener('change',function(){dc.fill(rosterNames(uc.get()),'');sync()});
+  dc.sel.addEventListener('change',sync);
+  return {unit:{node:uc.node,get value(){return uc.get()}},driver:{node:dc.node,get value(){return dc.get()}},title:title};
 }
 async function readSheets(file){
   var buf=await file.arrayBuffer(),wb;
@@ -774,11 +784,11 @@ async function readSheets(file){
   return wb.SheetNames.map(function(n){return XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:false,defval:''})});
 }
 function parseRoster(rows){
-  var ui=-1,ni=-1,start=0,i;
+  var ui=-1,ni=-1,ti=-1,start=0,i;
   for(i=0;i<Math.min(rows.length,10);i++){
     var r=rows[i].map(String);
     var a=r.findIndex(function(c){return /單位|部門/.test(c)}),b=r.findIndex(function(c){return /姓名|駕駛|使用人|人員/.test(c)});
-    if(a>=0&&b>=0&&a!==b){ui=a;ni=b;start=i+1;break}
+    if(a>=0&&b>=0&&a!==b){ui=a;ni=b;ti=r.findIndex(function(c){return /職稱|職務/.test(c)});start=i+1;break}
   }
   if(ui<0){ui=0;ni=1;start=0}
   var out=[],seen={},lastU='';
@@ -786,7 +796,9 @@ function parseRoster(rows){
     var uu=String(rows[j][ui]==null?'':rows[j][ui]).trim(),nn=String(rows[j][ni]==null?'':rows[j][ni]).trim();
     if(!uu&&!nn){if(out.length)break;continue}
     if(uu)lastU=uu;else uu=lastU;
-    var k=uu+'|'+nn;if(seen[k])continue;seen[k]=1;out.push({unit:uu,name:nn});
+    var k=uu+'|'+nn;if(seen[k])continue;seen[k]=1;
+    var tt=ti>=0?String(rows[j][ti]==null?'':rows[j][ti]).trim():'';
+    out.push(tt?{unit:uu,name:nn,title:tt}:{unit:uu,name:nn});
   }
   return out;
 }
@@ -811,8 +823,8 @@ function rosterPanel(){
   var rows=roster(),units=rosterUnits();
   var d=h('details',{class:'panel',style:'padding:10px 14px;margin-bottom:12px'});
   d.appendChild(h('summary',{style:'cursor:pointer;font-weight:700',text:units.length?'單位及使用人清單：'+units.length+' 個單位、'+rows.filter(function(r){return r.name}).length+' 人':'單位及使用人清單：尚未匯入'}));
-  if(!units.length){d.appendChild(h('p',{class:'empty',text:isAdmin?'按「匯入單位及使用人」上傳 Excel 或 CSV（欄位：單位、姓名）。匯入後，出發登記會改成下拉選單。':'尚未匯入，出發登記目前為自行輸入。'}));return d}
-  units.forEach(function(un){d.appendChild(h('div',{class:'empty',style:'margin-top:6px'},h('b',{text:un+'　'}),rosterNames(un).join('、')))});
+  if(!units.length){d.appendChild(h('p',{class:'empty',text:isAdmin?'按「匯入單位及使用人」上傳 Excel 或 CSV（欄位：單位、姓名，可再加「職稱」欄）。匯入後，出發登記會改成下拉選單。':'尚未匯入，出發登記目前為自行輸入。'}));return d}
+  units.forEach(function(un){d.appendChild(h('div',{class:'empty',style:'margin-top:6px'},h('b',{text:un+'　'}),rosterNames(un).map(function(n){var tt=rosterTitle(un,n);return tt?n+'（'+tt+'）':n}).join('、')))});
   return d;
 }
 var placesOpen=false;
@@ -923,7 +935,7 @@ function logSheet(v,limit){
     var ret=l.status==='returned';
     var retT=ret?((l.retDate&&l.retDate!==l.date?mdOf(l.retDate)+' ':'')+l.retTime):'—';
     tb.appendChild(h('tr',null,
-      h('td',{rowspan:2},mdOf(l.date),l.backfill?h('span',{class:'bftag',title:'補登：'+(l.backfillReason||''),text:'補'}):null,l.editedAt?h('span',{class:'bftag ed',title:'已修改：'+(l.editedReason||''),text:'改'}):null),h('td',{rowspan:2,text:l.unit}),h('td',{rowspan:2,text:l.driver}),h('td',{rowspan:2,class:'l',text:routeText(l)}),
+      h('td',{rowspan:2},mdOf(l.date),l.backfill?h('span',{class:'bftag',title:'補登：'+(l.backfillReason||''),text:'補'}):null,l.editedAt?h('span',{class:'bftag ed',title:'已修改：'+(l.editedReason||''),text:'改'}):null),h('td',{rowspan:2,text:l.unit}),h('td',{rowspan:2,text:drv(l)}),h('td',{rowspan:2,class:'l',text:routeText(l)}),
       h('td',{class:'mono',text:l.outMileage+' 公里'}),h('td',{class:'mono',text:l.outTime}),
       h('td',{rowspan:2},markText(l.look,l.note)),h('td',{rowspan:2},markText(l.cond,l.note)),adm?h('td',{rowspan:2},h('button',{type:'button',class:'ghost',style:'min-height:28px;padding:0 8px',text:'編輯',onclick:function(){gotoTrip(v.id,{editId:l.id})}})):null));
     tb.appendChild(h('tr',null,
@@ -987,7 +999,7 @@ function carList(){
   vs.forEach(function(v){
     var kv=h('dl',{class:'kv'}),lt=logsOf(v.id)[0];
     kv.appendChild(h('dt',{text:'上次返回儀錶板上里程'}));kv.appendChild(h('dd',{class:'mono',text:lastMileage(v.id)===''?'—':lastMileage(v.id)+' 公里'}));
-    kv.appendChild(h('dt',{text:'最近一趟'}));kv.appendChild(h('dd',{text:lt?mdOf(lt.date)+'　'+lt.unit+' '+lt.driver:'尚無紀錄'}));
+    kv.appendChild(h('dt',{text:'最近一趟'}));kv.appendChild(h('dd',{text:lt?mdOf(lt.date)+'　'+lt.unit+' '+drv(lt):'尚無紀錄'}));
     kv.appendChild(h('dt',{text:'狀況'}));kv.appendChild(h('dd',null,stateLine(v.id)));
     grid.appendChild(h('div',{class:'panel vcard'},
       h('div',{class:'vrow'},h('div',null,h('div',{class:'plate',text:v.plate}),carLine(v)?h('div',{class:'empty',text:carLine(v)}):null,h('div',{class:'empty',text:v.name||''}),h('div',{class:'empty',text:'管理單位：'+(v.mgmtUnit||'未設定')})),statusPill(v.id)),
@@ -1023,7 +1035,7 @@ function deletedPanel(){
     var l=x.log||{},when=new Date(x.at||0);
     var who=h('span',{text:'管理者'});(spans[x.by||'']=spans[x.by||'']||[]).push(who);
     d.appendChild(h('div',{class:'item',style:'--c:var(--mute);margin-top:8px'},
-      h('div',{class:'t',text:x.plate+'　'+mdOf(l.date)+'　'+(l.unit||'')+' '+(l.driver||'')+'　'+routeText(l)}),
+      h('div',{class:'t',text:x.plate+'　'+mdOf(l.date)+'　'+(l.unit||'')+' '+drv(l)+'　'+routeText(l)}),
       h('div',{class:'m',text:'里程 '+l.outMileage+' → '+l.retMileage+' 公里｜刪除時間 '+(when.getMonth()+1)+'/'+when.getDate()+' '+pad(when.getHours())+':'+pad(when.getMinutes())+'｜原因：'+(x.reason||'')}),
       h('div',{class:'m'},'刪除者：',who,h('button',{type:'button',class:'ghost',style:'margin-left:12px;min-height:26px;padding:0 8px',disabled:!canWrite,text:'還原',onclick:async function(){
         try{await put('vehicleLogs',l);await del('vehicleDeleted',x.id);toast('已還原這筆紀錄')}catch(e){writeErr(e)}
@@ -1034,10 +1046,10 @@ function deletedPanel(){
   return d;
 }
 function exportCars(){
-  var rows=[['車號','日期','單位','駕駛人','往返地點','出發里程數','返回里程數','出發時間','返回時間','外觀','車況','說明','補登原因','修改原因']];
+  var rows=[['車號','日期','單位','駕駛人','職稱','往返地點','出發里程數','返回里程數','出發時間','返回時間','外觀','車況','說明','補登原因','修改原因']];
   data.vehicleLogs.slice().sort(function(a,b){return (a.createdAt||0)-(b.createdAt||0)}).forEach(function(l){
     var ret=l.status==='returned';
-    rows.push([l.plate,(l.date||'').replace(/-/g,'/'),l.unit,l.driver,routeText(l),l.outMileage,ret?l.retMileage:'',l.outTime,ret?l.retTime:'',l.look==='bad'?'✕':'✓',l.cond==='bad'?'✕':'✓',l.note||'',l.backfillReason||'',l.editedReason||'']);
+    rows.push([l.plate,(l.date||'').replace(/-/g,'/'),l.unit,l.driver,l.title||'',routeText(l),l.outMileage,ret?l.retMileage:'',l.outTime,ret?l.retTime:'',l.look==='bad'?'✕':'✓',l.cond==='bad'?'✕':'✓',l.note||'',l.backfillReason||'',l.editedReason||'']);
   });
   saveCsv('車輛駕駛記錄.csv',rows);
 }
@@ -1111,7 +1123,7 @@ function tripForm(v){
   if(mode==='edit'&&!(isAdmin&&canWrite))return h('div',{class:'vpage'},h('div',{class:'panel formcard'},h('h2',{text:'只有管理者可以修改紀錄'}),h('button',{type:'button',text:'回車輛頁面',onclick:function(){goto('detail',v.id)}})));
   var st=vState(v.id),last=lastMileage(v.id),lock=mode==='new';
   var date=h('input',{type:'date',id:'tDate',value:rec?rec.date:ds(new Date())});
-  var pf=personFields(rec?rec.unit:mem('unit'),rec?rec.driver:mem('driver')),unit=pf.unit,driver=pf.driver;
+  var pf=personFields(rec?rec.unit:mem('unit'),rec?rec.driver:mem('driver'),rec?rec.title:mem('title')),unit=pf.unit,driver=pf.driver,drvTitle=pf.title;
   var route=routeField(rec?rec.route:null),viaF=viaField(rec?viaList(rec):[]);
   var kmOut=h('input',{type:'number',id:'tKmOut',inputmode:'numeric',value:rec?rec.outMileage:(mode==='back'?'':last)});
   var kmRet=h('input',{type:'number',id:'tKmRet',inputmode:'numeric',placeholder:'返回時里程表',value:rec?rec.retMileage:''});
@@ -1181,7 +1193,7 @@ function tripForm(v){
     submit.disabled=true;
     try{
       var now=Date.now();
-      var base={plate:v.id,status:'returned',date:date.value,unit:unit.value.trim(),driver:driver.value.trim(),route:route.value.trim(),via:viaF.get(),
+      var base={plate:v.id,status:'returned',date:date.value,unit:unit.value.trim(),driver:driver.value.trim(),title:drvTitle.value.trim(),route:route.value.trim(),via:viaF.get(),
         outMileage:+kmOut.value,outTime:tOut.value,retMileage:+kmRet.value,retTime:tRet.value,retDate:date.value,look:look.get(),cond:cond.get(),note:note.value.trim()};
       if(mode==='edit')await put('vehicleLogs',Object.assign({},rec,base,{editedAt:now,editedReason:why.value.trim(),updatedAt:now}));
       else{
@@ -1189,14 +1201,14 @@ function tripForm(v){
         if(mode==='back'){o.backfill=true;o.backfillReason=why.value.trim();o.backfillAt=now}
         await put('vehicleLogs',o);
       }
-      remember('unit',base.unit);remember('driver',base.driver);if(mode==='new'){remember('route',base.route);remember('dest',route.dest())}
+      remember('unit',base.unit);remember('driver',base.driver);remember('title',base.title);if(mode==='new'){remember('route',base.route);remember('dest',route.dest())}
       var tc=tripCost(v,base.retMileage-base.outMileage,base.date);
       toast(mode==='edit'?'已儲存修改':'已登記，行駛 '+(base.retMileage-base.outMileage)+' 公里'+(tc!=null?'，參考油費約 '+money(tc)+' 元':''));goto('detail',v.id);
     }catch(e){writeErr(e);submit.disabled=false}
   }});
   var delBtn=mode==='edit'?h('button',{type:'button',class:'danger',text:'刪除這筆',onclick:async function(){
     if(!why.value.trim()){err.textContent='';err.appendChild(h('div',{class:'warn err',text:'刪除前請先在「修改原因」欄填寫刪除原因。'}));why.focus();return}
-    var r=await ask('確定刪除這筆紀錄？（'+mdOf(rec.date)+'　'+rec.unit+' '+rec.driver+'，'+rec.outMileage+' → '+rec.retMileage+' 公里）系統會先保留一份刪除紀錄，管理者可在車輛頁的「已刪除的紀錄」還原。',[['取消',0],['刪除',1,'danger']]);
+    var r=await ask('確定刪除這筆紀錄？（'+mdOf(rec.date)+'　'+rec.unit+' '+drv(rec)+'，'+rec.outMileage+' → '+rec.retMileage+' 公里）系統會先保留一份刪除紀錄，管理者可在車輛頁的「已刪除的紀錄」還原。',[['取消',0],['刪除',1,'danger']]);
     if(!r)return;
     try{
       var by=null;try{if(user)by=await user.id()}catch(e){}
@@ -1212,7 +1224,7 @@ function tripForm(v){
       h('div',{class:'vrow'},h('h2',{text:title}),h('span',{class:'mono',style:'font-weight:700;font-size:18px',text:v.plate})),
       h('p',{class:'empty',style:'margin:0',text:sub}),mode==='new'?monthPanel(v,false):null,mode==='new'?lastBox(v.id):null,
       field('日期',date,null,true),
-      h('div',{class:'two'},field('單位',unit.node,'請填寫單位代碼',true),field('駕駛人',driver.node,null,true)),
+      h('div',{class:'two'},field('單位',unit.node,'請填寫單位代碼',true),field('駕駛人',driver.node,null,true)),field('職稱（選填）',drvTitle.node,null,false),
       field('往返地點',route.node,null,true),h('div',{class:'f'},h('span',{text:'中途點（選填，依經過順序）'}),viaF.node),
       h('div',{class:'two'},field('出發里程數（公里）',kmOut,mode==='new'&&last!==''?'上次返回：'+last+' 公里':null,true),field('返回里程數（公里）',kmRet,null,true)),mileMsg,
       h('div',{class:'two'},field('出發時間',tOut,null,true),field('返回時間',tRet,null,true)),
@@ -1220,7 +1232,7 @@ function tripForm(v){
       h('div',{class:'chk'},h('div',null,h('span',{text:'車況*'}),h('small',{class:'empty',style:'display:block',text:lock&&st.cond.bad?'已登記異常，維修完成後由管理者標記修復':'檢查包含儀表（油表、水溫及儀表各項燈號）、煞車、喇叭、燈號等。'})),cond.node),
       noteWrap,
       why?field(mode==='edit'?'修改原因':'補登原因',why,null,true):null,
-      datalist('dlUnit','unit'),datalist('dlDrv','driver'),datalist('dlRoute','route'),err),
+      datalist('dlUnit','unit'),datalist('dlDrv','driver'),datalist('dlTitle','title'),datalist('dlRoute','route'),err),
     h('div',{class:'submitbar'},delBtn,h('span',{style:'flex:1'}),h('button',{type:'button',text:'取消',onclick:function(){goto('detail',v.id)}}),submit));
 }
 
@@ -1396,7 +1408,7 @@ function paperPage(v,trips,pageNo,pages){
     if(l){
       var ret=l.status==='returned';
       var retT=ret?((l.retDate&&l.retDate!==l.date?mdOf(l.retDate)+' ':'')+(l.retTime||'')):'';
-      rows+='<tr><td rowspan="2">'+escHtml(mdOf(l.date))+'</td><td rowspan="2">'+escHtml(l.unit)+'</td><td rowspan="2">'+escHtml(l.driver)+'</td><td rowspan="2" class="l">'+escHtml(routeText(l))+'</td>'
+      rows+='<tr><td rowspan="2">'+escHtml(mdOf(l.date))+'</td><td rowspan="2">'+escHtml(l.unit)+'</td><td rowspan="2">'+escHtml(l.driver)+(l.title?'<br><span class="ttl">'+escHtml(l.title)+'</span>':'')+'</td><td rowspan="2" class="l">'+escHtml(routeText(l))+'</td>'
         +'<td class="n">'+escHtml(l.outMileage)+' 公里</td><td class="n">'+escHtml(l.outTime)+'</td>'
         +'<td rowspan="2" class="mk'+(l.look==='bad'?' bad':'')+'">'+(l.look==='bad'?'✕':'✓')+'</td><td rowspan="2" class="mk'+(l.cond==='bad'?' bad':'')+'">'+(l.cond==='bad'?'✕':'✓')+'</td></tr>'
         +'<tr><td class="n">'+(ret?escHtml(l.retMileage)+' 公里':'使用中')+'</td><td class="n">'+escHtml(retT)+'</td></tr>';
@@ -1432,7 +1444,7 @@ function exportPaper(){
     +'table{width:100%;border-collapse:collapse;table-layout:fixed;border:2px solid #000}'
     +'th,td{border:1px solid #000;text-align:center;padding:3px 2px;font-size:13px;height:25px;overflow-wrap:anywhere}'
     +'th{font-weight:400;line-height:1.25}.title{font-size:21px;letter-spacing:.9em;padding:8px 0 8px .9em}.plate{text-align:left;padding-left:8px;font-size:15px}'
-    +'td.l{text-align:left;padding-left:6px}td.n{font-variant-numeric:tabular-nums}.mk{font-size:17px;font-weight:700}.mk.bad{color:#b3261e}'
+    +'td.l{text-align:left;padding-left:6px}.ttl{font-size:8pt;color:#333}td.n{font-variant-numeric:tabular-nums}.mk{font-size:17px;font-weight:700}.mk.bad{color:#b3261e}'
     +'.note{text-align:left;font-size:12px;padding:6px 8px;height:auto}.meta{font-size:11px;color:#666;text-align:right;margin-top:4px}'
     +'</style></head><body>'+body+'</body></html>';
   dl.save({filename:'車輛駕駛記錄表_'+stamp+'.html',data:html}).then(function(){toast('已匯出紙本格式（共 '+total+' 趟）')},function(e){if(!e||e.code!=='declined')toast('無法下載檔案')});
