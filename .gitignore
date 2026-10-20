@@ -6,6 +6,7 @@
 *.jpg
 *.jpeg
 *.png
+!img/*.png
 *.zip
 
 # local only: initial data (contains names), mock files for back-end tests, one-time edit script, pre-edit backup
