@@ -239,6 +239,15 @@ dialog h2{margin:0;font-size:18px}
 .bftag.ed{background:var(--surface2);color:var(--mute);border-color:var(--line)}
 .lastbox{border:1px solid var(--line);background:var(--surface2);border-radius:8px;padding:10px 14px;display:grid;gap:2px}
 .lb-k{font-size:12px;color:var(--mute);font-weight:700;letter-spacing:.06em}
+.mstat{border:1px solid var(--line);background:var(--surface2);border-radius:8px;padding:8px 14px}
+.mstat>summary{cursor:pointer;font-size:14px;line-height:1.6}
+.mstat>summary b{font-size:18px}
+.mrow{display:grid;grid-template-columns:5.5em 1fr 8.5em;align-items:center;gap:8px;padding:3px 0;font-size:13px}
+.mrow .mbar{height:12px;border-radius:6px;background:var(--line);overflow:hidden}
+.mrow .mbar i{display:block;height:100%;background:var(--ok);border-radius:6px}
+.mrow.cur .mbar i{background:var(--warn)}
+.mrow .mkm{text-align:right}
+.mnote{font-size:12px;color:var(--mute);margin-top:6px}
 .lb-v{font-size:28px;font-weight:700;line-height:1.2}
 .lb-s{font-size:12px;color:var(--mute);overflow-wrap:anywhere}
 .hbtn{background:transparent;border:1px solid rgba(255,255,255,.55);color:inherit;min-height:32px;padding:3px 12px;font-size:13px}
@@ -591,6 +600,35 @@ function lastMileage(p){
   if(l)return l.retMileage;var v=vehicle(p);return v&&v.lastMileage!=null?v.lastMileage:'';
 }
 function abnormal(l){return l.look==='bad'||l.cond==='bad'}
+/* 每月行駛里程：只計算已返回、里程正確的行程，依「出發日期」歸入該月 */
+var statSpan=3;
+function monthStats(p){
+  var m={};
+  data.vehicleLogs.forEach(function(l){
+    if(l.plate!==p||l.status!=='returned'||l.outMileage==null||l.retMileage==null||!l.date)return;
+    var d=l.retMileage-l.outMileage;if(!(d>=0))return;
+    var k=l.date.slice(0,7),o=m[k]||(m[k]={km:0,trips:0});o.km+=d;o.trips++;
+  });
+  return m;
+}
+function monthKey(back){var n=new Date(),d=new Date(n.getFullYear(),n.getMonth()-back,1);return d.getFullYear()+'-'+pad(d.getMonth()+1)}
+function monthLabel(k){var s=k.split('-');return s[0]+'年'+(+s[1])+'月'}
+function monthPanel(v,open){
+  var st=monthStats(v.id),rows=[],max=0,i;
+  for(i=0;i<statSpan;i++){var k=monthKey(i),o=st[k]||{km:0,trips:0};rows.push({k:k,km:o.km,trips:o.trips});if(o.km>max)max=o.km}
+  var cur=rows[0],prev=rows[1],diff=cur.km-prev.km;
+  var cmp=prev.km||cur.km?(diff===0?'與上月相同':(diff>0?'比上月多 ':'比上月少 ')+Math.abs(diff)+' 公里'+(prev.km?'（'+(diff>0?'+':'−')+Math.round(Math.abs(diff)/prev.km*100)+'%）':'')):'';
+  var sum=h('summary',null,'每月行駛里程：本月 ',h('b',{class:'mono',text:cur.km+' 公里'}),'　上月 '+prev.km+' 公里',cmp?'　'+cmp:'');
+  var box=h('details',{class:'mstat',open:open});box.appendChild(sum);
+  rows.forEach(function(r,j){
+    box.appendChild(h('div',{class:'mrow'+(j===0?' cur':'')},
+      h('span',{text:monthLabel(r.k)+(j===0?'（本月）':'')}),
+      h('span',{class:'mbar'},h('i',{style:'width:'+(max?Math.round(r.km/max*100):0)+'%'})),
+      h('span',{class:'mkm mono',text:r.km+' 公里・'+r.trips+' 趟'})));
+  });
+  box.appendChild(h('div',{class:'mnote',text:'本月為截至今天的累計。只計算已返回的行程（返回里程減出發里程），依出發日期歸月。'}));
+  return box;
+}
 function mdOf(s){if(!s)return '';var d=pd(s);return (d.getMonth()+1)+'/'+d.getDate()}
 function goto(m,p){cv={mode:m,plate:p};renderCars();window.scrollTo(0,0)}
 function gotoTrip(p,o){cv=Object.assign({mode:'trip',plate:p},o||{});renderCars();window.scrollTo(0,0)}
@@ -923,7 +961,7 @@ function carDetail(v){
   kv.appendChild(h('dt',{text:'狀況'}));kv.appendChild(h('dd',null,stateLine(v.id)));
   var head=h('div',{class:'panel vhead'},
     h('div',{class:'vrow'},h('div',null,h('div',{class:'plate',text:v.plate}),h('div',{class:'empty',text:v.name||''}),h('div',{class:'empty',text:'管理單位：'+(v.mgmtUnit||'未設定')})),statusPill(v.id)),
-    lastBox(v.id),kv,
+    monthPanel(v,true),lastBox(v.id),kv,
     h('button',{type:'button',class:'primary',style:'min-height:52px;font-size:17px',disabled:!canWrite,text:'返回登記',onclick:function(){goto('trip',v.id)}}),h('button',{type:'button',disabled:!canWrite,text:'補登一筆（忘記登記時）',onclick:function(){gotoTrip(v.id,{backfill:true})}}));
   return h('div',{class:'vpage',style:'max-width:760px'},
     h('div',null,h('button',{type:'button',class:'ghost',text:'← 車輛清單',onclick:function(){cv={mode:'list'};renderCars()}})),head,editUnitPanel(v),repairPanel(v),logSheet(v,10),deleteVehiclePanel(v));
@@ -1078,7 +1116,7 @@ function tripForm(v){
     h('div',null,h('button',{type:'button',class:'ghost',text:'← 取消',onclick:function(){goto('detail',v.id)}})),
     h('div',{class:'panel formcard'},
       h('div',{class:'vrow'},h('h2',{text:title}),h('span',{class:'mono',style:'font-weight:700;font-size:18px',text:v.plate})),
-      h('p',{class:'empty',style:'margin:0',text:sub}),mode==='new'?lastBox(v.id):null,
+      h('p',{class:'empty',style:'margin:0',text:sub}),mode==='new'?monthPanel(v,false):null,mode==='new'?lastBox(v.id):null,
       field('日期',date,null,true),
       h('div',{class:'two'},field('單位',unit.node,'請填寫單位代碼',true),field('駕駛人',driver.node,null,true)),
       field('往返地點',route.node,null,true),h('div',{class:'f'},h('span',{text:'中途點（選填，依經過順序）'}),viaF.node),
