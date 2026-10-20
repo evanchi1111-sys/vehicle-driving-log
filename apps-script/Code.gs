@@ -307,3 +307,116 @@ function csvCell_(v) {
   if (typeof v === 'string' && /^[=+\-@]/.test(s)) s = "'" + s;
   return '"' + s.replace(/"/g, '""') + '"';
 }
+
+// ---------------------------------------------------------------- 每天自動抓取中油 95 無鉛汽油牌價（用來估算油費）
+
+var CPC_XML_URL  = 'https://vipmbr.cpc.com.tw/cpcstn/listpricewebservice.asmx/getCPCMainProdListPrice_XML';
+var CPC_JSON_URL = 'https://www.cpc.com.tw/GetOilPriceJson.aspx?type=TodayOilPriceString';
+
+/** 只需在編輯器執行一次：每天早上 9～10 點自動檢查中油牌價（牌價沒變動就不會新增資料） */
+function installFuelPriceTrigger() {
+  removeFuelPriceTrigger();
+  ScriptApp.newTrigger('dailyFuelPrice').timeBased().everyDays(1).atHour(9).create();
+  Logger.log('已設定：每天 09:00～10:00 自動更新中油 95 無鉛汽油牌價。');
+}
+
+/** 取消每天自動更新油價 */
+function removeFuelPriceTrigger() {
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'dailyFuelPrice') ScriptApp.deleteTrigger(t);
+  });
+}
+
+/** 由排程呼叫。失敗時寄信通知，同一種失敗 7 天內只通知一次 */
+function dailyFuelPrice() {
+  try {
+    updateFuelPrice();
+  } catch (err) {
+    var props = PropertiesService.getScriptProperties();
+    var lastAlert = Number(props.getProperty('FUEL_ALERT') || 0);
+    if (Date.now() - lastAlert > 7 * 24 * 3600 * 1000) {
+      props.setProperty('FUEL_ALERT', String(Date.now()));
+      MailApp.sendEmail(Session.getEffectiveUser().getEmail(), '【車輛借用系統】中油油價自動更新失敗',
+        '錯誤訊息：' + (err && err.message || err) + '\n\n油費估算會繼續使用最近一次成功抓到的價格。' +
+        '你也可以到網頁「油價與油耗」手動新增單價。');
+    }
+    throw err;
+  }
+}
+
+/** 抓取目前牌價並寫入。也可以在編輯器手動執行，立刻抓一次（第一次設定時請先執行這個） */
+function updateFuelPrice() {
+  var got = fetchCpc95_();
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var sh = sheet_('settings'), row = findRow_(sh, 'fuelAuto'), doc = {rows: []};
+    if (row) {
+      try { doc = JSON.parse(sh.getRange(row, 2).getValue()); } catch (e) { doc = {rows: []}; }
+    }
+    doc.rows = doc.rows || [];
+    var ex = null;
+    doc.rows.forEach(function (r) { if (r.date === got.date) ex = r; });
+    if (ex && Number(ex.p95) === got.p95) {
+      Logger.log('牌價沒有變動：' + got.date + ' 起 ' + got.p95 + ' 元／公升');
+      return got;
+    }
+    if (ex) ex.p95 = got.p95; else doc.rows.push({date: got.date, p95: got.p95});
+    doc.rows.sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
+    doc.rows = doc.rows.slice(-400);
+    doc.at = new Date().toISOString();
+    var json = JSON.stringify(doc), now = doc.at;
+    if (row) sh.getRange(row, 1, 1, 3).setValues([['fuelAuto', json, now]]);
+    else sh.appendRow(['fuelAuto', json, now]);
+    bump_();   // 讓已開啟的網頁在下次檢查時取得新價格
+    Logger.log('已更新：' + got.date + ' 起 95 無鉛汽油 ' + got.p95 + ' 元／公升');
+    return got;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/** 從中油取得 95 無鉛汽油牌價與生效日期，先試 XML，失敗再試 JSON */
+function fetchCpc95_() {
+  var errs = [];
+  try {
+    var xml = cpcGet_(CPC_XML_URL);
+    var blocks = xml.split('<Table>');
+    for (var i = 0; i < blocks.length; i++) {
+      if (blocks[i].indexOf('<產品名稱>95無鉛汽油</產品名稱>') < 0) continue;
+      var p = /<參考牌價_金額>\s*([\d.]+)\s*<\/參考牌價_金額>/.exec(blocks[i]);
+      var d = /<牌價生效日期>\s*(\d{7})\s*<\/牌價生效日期>/.exec(blocks[i]);
+      if (p && d) {
+        return checkCpc_({date: (Number(d[1].slice(0, 3)) + 1911) + '-' + d[1].slice(3, 5) + '-' + d[1].slice(5, 7), p95: Number(p[1])});
+      }
+    }
+    errs.push('XML 找不到 95 無鉛汽油');
+  } catch (e1) {
+    errs.push('XML：' + (e1 && e1.message || e1));
+  }
+  try {
+    var j = JSON.parse(cpcGet_(CPC_JSON_URL));
+    var m = /(\d+)月(\d+)日/.exec(j.PriceUpdate || '');
+    if (m && j.sPrice2) {
+      var now = new Date(), y = now.getFullYear();
+      if (new Date(y, Number(m[1]) - 1, Number(m[2])).getTime() > now.getTime() + 7 * 24 * 3600 * 1000) y -= 1;   // 跨年（例如 1 月看到 12 月的日期）
+      return checkCpc_({date: y + '-' + ('0' + m[1]).slice(-2) + '-' + ('0' + m[2]).slice(-2), p95: Number(j.sPrice2)});
+    }
+    errs.push('JSON 格式不符');
+  } catch (e2) {
+    errs.push('JSON：' + (e2 && e2.message || e2));
+  }
+  throw new Error('無法取得中油油價（' + errs.join('；') + '）');
+}
+
+function cpcGet_(url) {
+  var res = UrlFetchApp.fetch(url, {muteHttpExceptions: true, followRedirects: true, headers: {'User-Agent': 'Mozilla/5.0'}});
+  if (res.getResponseCode() !== 200) throw new Error('HTTP ' + res.getResponseCode());
+  return res.getContentText('UTF-8');
+}
+
+/** 基本檢查，避免抓到錯誤的數字：單價要在 10～100 元之間 */
+function checkCpc_(r) {
+  if (!(r.p95 >= 10 && r.p95 <= 100) || !/^\d{4}-\d{2}-\d{2}$/.test(r.date)) throw new Error('抓到的資料不合理：' + JSON.stringify(r));
+  return r;
+}

@@ -4,12 +4,12 @@
 <title>車輛借用系統</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@700;900&display=swap">
 <style>
 /* Layout: one shell, two work areas (rooms calendar + day panel / vehicle cards + log). Utility-grade, built for the W5 office and for phones at the car. */
 :root{
-  --bg:#edf0f3; --surface:#ffffff; --surface2:#f5f7f9; --ink:#17202a; --mute:#566370; --line:#d3dae1;
-  --accent:#1b4d7e; --on-accent:#ffffff; --focus:#2b7de0;
+  --bg:#eef2f8; --surface:#ffffff; --surface2:#f4f7fb; --ink:#17202a; --mute:#566370; --line:#d5deeb;
+  --accent:#3071b9; --on-accent:#ffffff; --focus:#4a8ad4; --gold:#fbce00;
   --exec:#2d6aa8; --exec-bg:#e1ecf8;
   --c311:#c26a0a; --c311-bg:#fbeedb;
   --c304:#1d8552; --c304-bg:#dcf2e6;
@@ -19,6 +19,7 @@
   --ok:#1b7447; --ok-bg:#dff2e7; --warn:#7c5600; --warn-bg:#fff2cc; --bad:#b3261e; --bad-bg:#fbe4e1;
   --sans:"Noto Sans TC","Microsoft JhengHei","PingFang TC",system-ui,sans-serif;
   --mono:"JetBrains Mono","Cascadia Mono",Consolas,monospace;
+  --serif:"Noto Serif TC","PMingLiU",serif;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
@@ -241,13 +242,17 @@ dialog h2{margin:0;font-size:18px}
 .lb-k{font-size:12px;color:var(--mute);font-weight:700;letter-spacing:.06em}
 .mstat{border:1px solid var(--line);background:var(--surface2);border-radius:8px;padding:8px 14px}
 .mstat>summary{cursor:pointer;font-size:14px;line-height:1.6}
-.mstat>summary b{font-size:18px}
-.mrow{display:grid;grid-template-columns:5.5em 1fr 8.5em;align-items:center;gap:8px;padding:3px 0;font-size:13px}
+.mstat>summary .mcmp{font-size:13px;color:var(--mute)}
+.mrow{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:3px 8px;padding:4px 0;font-size:13px}
+.mrow>.mbar{grid-column:1/-1;order:3}
+.mfuel{display:grid;gap:8px}
+.mfuel .prow{display:flex;justify-content:space-between;gap:8px;font-size:13px;padding:2px 0;border-bottom:1px dashed var(--line)}
 .mrow .mbar{height:12px;border-radius:6px;background:var(--line);overflow:hidden}
 .mrow .mbar i{display:block;height:100%;background:var(--ok);border-radius:6px}
 .mrow.cur .mbar i{background:var(--warn)}
 .mrow .mkm{text-align:right}
-.mnote{font-size:12px;color:var(--mute);margin-top:6px}
+@media (max-width:400px){.mrow .mkm{font-size:11.5px;letter-spacing:-.02em}}
+.mnote{font-size:12px;color:var(--mute);margin-top:6px;line-height:1.5}
 .lb-v{font-size:28px;font-weight:700;line-height:1.2}
 .lb-s{font-size:12px;color:var(--mute);overflow-wrap:anywhere}
 .lb-st{font-size:14px;margin-top:4px}
@@ -318,10 +323,24 @@ table.sheet th{font-size:14px}
 }
 .day.today.sel{box-shadow:none}
 .foot{color:var(--mute);font-size:12px;padding-bottom:28px}
+/* ---- W5 CI：寶藍＋金黃，標題列放集團標誌與 W5 膠囊 ---- */
+header.top{border-bottom:4px solid var(--gold)}
+.brandlogo{display:flex;align-items:center;gap:10px;min-width:0}
+.brandlogo .em{width:40px;height:40px;border-radius:50%;box-shadow:0 0 0 2px #fff;display:block;background:#fff;flex:none}
+.brandlogo .pl{height:26px;width:auto;display:block;flex:none}
+.brandlogo .bt{font-family:var(--serif);font-weight:700;font-size:15px;letter-spacing:.1em;color:var(--on-accent);border-left:1px solid #ffffff66;padding-left:9px;white-space:nowrap}
+header.top .wrap{flex-wrap:nowrap;gap:8px}
+.hbtn{border-radius:999px;padding:5px 10px;min-height:32px;font-size:13px;white-space:nowrap}
+button.primary{border-radius:999px}
+.sec-title h2,.formcard h2{font-family:var(--serif);font-weight:900;letter-spacing:.08em;color:var(--accent)}
+.mrow .mbar i{background:var(--accent)}
+.mrow.cur .mbar i{background:var(--gold)}
+.mstat{border-left:4px solid var(--gold)}
+.lastbox{border-left:4px solid var(--accent)}
 </style>
 <header class="top">
   <div class="wrap">
-    <div class="brand">車輛借用系統</div>
+    <div class="brandlogo"><img class="em" src="img/emblem.png" alt="" onerror="this.style.display='none'"><img class="pl" src="img/pill.png" alt="W5" onerror="this.style.display='none'"><span class="bt">車輛借用系統</span></div>
     <button id="btnBackup" class="hbtn" hidden>備份與還原</button>
     <button id="btnLogout" class="hbtn" hidden></button>
   </div>
@@ -447,7 +466,7 @@ function writeErr(e){
 }
 function seedLocal(){
   data.vehicles=[{id:'DEMO-001',plate:'DEMO-001',name:'示範車輛 1',lastMileage:1000},{id:'DEMO-002',plate:'DEMO-002',name:'示範車輛 2',lastMileage:25000}];
-  data.vehicleLogs=[];data.settings=[];data.vehicleRepairs=[];data.roster=[];data.places=[];data.vehicleDeleted=[];
+  data.vehicleLogs=[];data.settings=[{id:'fuelAuto',rows:[{date:'2026-09-14',p95:32.2},{date:'2026-10-05',p95:32.7},{date:'2026-10-19',p95:32.7}]}];data.vehicleRepairs=[];data.roster=[];data.places=[];data.vehicleDeleted=[];
 }
 function startLocal(){mode='local';dl=fileSaver();if(!localLoad())seedLocal();fire()}
 function subscribe(n){
@@ -574,8 +593,8 @@ function setting(k){var s=data.settings.find(function(x){return x.id==='app'});r
 /* ================= shell (single view) ================= */
 function setTab(){renderAll(true)}
 function renderNotice(){
-  var bb=$('btnBackup');if(bb)bb.hidden=!isAdmin;
-  var lo=$('btnLogout');if(lo){lo.hidden=!remote;lo.textContent=anon?(isAdmin?'管理者・登出':'管理者登入'):(isAdmin?'管理者':'同仁')+'・切換身分'}
+  var bb=$('btnBackup');if(bb)bb.hidden=!isAdmin||isLoading();
+  var lo=$('btnLogout');if(lo){lo.hidden=!remote||isLoading();lo.textContent=anon?(isAdmin?'管理者・登出':'管理者登入'):(isAdmin?'管理者':'同仁')+'・切換身分'}
   var n=$('notice');n.textContent='';
   if(remote&&!loaded&&!dbErr)n.appendChild(h('div',{class:'note soft',text:'連線中，請稍候…'}));
   if(mode==='local')n.appendChild(h('div',{class:'note soft',text:'示範模式：資料只存在這台裝置，不會與其他人共用。'}));
@@ -601,14 +620,39 @@ function lastMileage(p){
   if(l)return l.retMileage;var v=vehicle(p);return v&&v.lastMileage!=null?v.lastMileage:'';
 }
 function abnormal(l){return l.look==='bad'||l.cond==='bad'}
+function carModel(v){return [v&&v.make,v&&v.model].filter(Boolean).join(' ')}
+function carLine(v){return [carModel(v),v&&v.kmPerL?'油耗 '+v.kmPerL+' 公里／公升':''].filter(Boolean).join('・')}
+/* 油耗查詢：連到經濟部能源署公開的車輛油耗資料，管理者自行查詢後填入「平均油耗」 */
+var FUEL_LOOKUP_URL='https://data.gov.tw/dataset/11163';
+function fuelLink(){return h('a',{href:FUEL_LOOKUP_URL,target:'_blank',rel:'noopener noreferrer',text:'到能源署查油耗（車輛油耗指南）'})}
 /* 每月行駛里程：只計算已返回、里程正確的行程，依「出發日期」歸入該月 */
 var statSpan=3;
-function monthStats(p){
+/* 油費估算：行駛公里 ÷ 平均油耗 × 該日適用的 95 無鉛汽油單價。
+   單價來源：後端每天自動抓取的中油牌價（settings/fuelAuto），管理者手動新增的單價（settings/fuel）優先 */
+var DEF_KMPL=10;
+function money(n){return String(n).replace(/\B(?=(\d{3})+(?!\d))/g,',')}
+function fuelDoc(){return data.settings.find(function(x){return x.id==='fuel'})||{}}
+function fuelAutoDoc(){return data.settings.find(function(x){return x.id==='fuelAuto'})||{}}
+function fuelRows(){
   var m={};
+  (fuelAutoDoc().rows||[]).forEach(function(r){m[r.date]={date:r.date,p:+r.p95,src:'cpc'}});
+  (fuelDoc().rows||[]).forEach(function(r){m[r.date]={date:r.date,p:+r.p95,src:'manual'}});
+  return Object.keys(m).sort().map(function(k){return m[k]}).filter(function(r){return r.p>0});
+}
+function priceOn(dateStr){
+  var rows=fuelRows(),hit=null;if(!rows.length)return null;
+  rows.forEach(function(r){if(r.date<=dateStr)hit=r});
+  return hit?{p:hit.p,date:hit.date,src:hit.src,early:false}:{p:rows[0].p,date:rows[0].date,src:rows[0].src,early:true};
+}
+function kmPerL(v){var x=+(v&&v.kmPerL)||+fuelDoc().kmPerL||DEF_KMPL;return x>0?x:DEF_KMPL}
+function tripCost(v,km,dateStr){var pr=priceOn(dateStr);if(!pr||!(km>=0))return null;return Math.round(km/kmPerL(v)*pr.p)}
+function monthStats(p){
+  var m={},v=vehicle(p);
   data.vehicleLogs.forEach(function(l){
     if(l.plate!==p||l.status!=='returned'||l.outMileage==null||l.retMileage==null||!l.date)return;
     var d=l.retMileage-l.outMileage;if(!(d>=0))return;
-    var k=l.date.slice(0,7),o=m[k]||(m[k]={km:0,trips:0});o.km+=d;o.trips++;
+    var k=l.date.slice(0,7),o=m[k]||(m[k]={km:0,trips:0,cost:0,noPrice:false}),c=tripCost(v,d,l.date);
+    o.km+=d;o.trips++;if(c==null)o.noPrice=true;else o.cost+=c;
   });
   return m;
 }
@@ -616,18 +660,24 @@ function monthKey(back){var n=new Date(),d=new Date(n.getFullYear(),n.getMonth()
 function monthLabel(k){var s=k.split('-');return s[0]+'年'+(+s[1])+'月'}
 function monthPanel(v,open){
   var st=monthStats(v.id),rows=[],max=0,i;
-  for(i=0;i<statSpan;i++){var k=monthKey(i),o=st[k]||{km:0,trips:0};rows.push({k:k,km:o.km,trips:o.trips});if(o.km>max)max=o.km}
+  for(i=0;i<statSpan;i++){var k=monthKey(i),o=st[k]||{km:0,trips:0,cost:0,noPrice:false};rows.push({k:k,km:o.km,trips:o.trips,cost:o.noPrice?null:o.cost});if(o.km>max)max=o.km}
   var cur=rows[0],prev=rows[1],diff=cur.km-prev.km;
+  function costTxt(c){return c==null?'':'約 '+money(c)+' 元'}
   var cmp=prev.km||cur.km?(diff===0?'與上月相同':(diff>0?'比上月多 ':'比上月少 ')+Math.abs(diff)+' 公里'+(prev.km?'（'+(diff>0?'+':'−')+Math.round(Math.abs(diff)/prev.km*100)+'%）':'')):'';
-  var sum=h('summary',null,'每月行駛里程：本月 ',h('b',{class:'mono',text:cur.km+' 公里'}),'　上月 '+prev.km+' 公里',cmp?'　'+cmp:'');
+  var sum=h('summary',null,h('b',{text:'每月行駛里程'}),cmp?h('span',{class:'mcmp',text:'　'+cmp}):null);
   var box=h('details',{class:'mstat',open:open});box.appendChild(sum);
   rows.forEach(function(r,j){
     box.appendChild(h('div',{class:'mrow'+(j===0?' cur':'')},
-      h('span',{text:monthLabel(r.k)+(j===0?'（本月）':'')}),
+      h('span',{text:r.k.replace('-','/')+(j===0?'（本月）':'')}),
       h('span',{class:'mbar'},h('i',{style:'width:'+(max?Math.round(r.km/max*100):0)+'%'})),
-      h('span',{class:'mkm mono',text:r.km+' 公里・'+r.trips+' 趟'})));
+      h('span',{class:'mkm mono',text:r.km+' 公里・'+r.trips+' 趟'+(r.cost!=null&&r.km?'・'+costTxt(r.cost):'')})));
   });
-  box.appendChild(h('div',{class:'mnote',text:'本月為截至今天的累計。只計算已返回的行程（返回里程減出發里程），依出發日期歸月。'}));
+  var pr=priceOn(ds(new Date()));
+  var notes=[];
+  if(pr){
+    notes.push('油費（僅供參考）＝公里 ÷ '+kmPerL(v)+' 公里／公升 × 中油 95 牌價 '+pr.p+' 元／公升（'+mdOf(pr.date)+' 起），公司廠內加油價格可能不同，實際以廠內結算為準。');
+  }else notes.push('尚無油價資料，暫不顯示油費。');
+  notes.forEach(function(t){box.appendChild(h('div',{class:'mnote',text:t}))});
   return box;
 }
 function mdOf(s){if(!s)return '';var d=pd(s);return (d.getMonth()+1)+'/'+d.getDate()}
@@ -796,6 +846,37 @@ function routeField(initRoute){
   var c=combo('oRoute','其他地點（自行輸入）','請輸入地點');c.fill(rows,initRoute?String(initRoute).split('↔').slice(1).join('↔').trim():mem('dest'));
   return {node:h('div',{class:'routebox'},h('span',{class:'mono',text:origin+' ↔'}),c.node),dest:c.get,get value(){var d=c.get();return d?origin+' ↔ '+d:''}};
 }
+var fuelOpen=false;
+function saveFuel(patch){var cur=fuelDoc();return put('settings',Object.assign({id:'fuel',kmPerL:cur.kmPerL||null,rows:(cur.rows||[]).slice()},patch))}
+function fuelPanel(){
+  var rows=fuelRows(),last=rows.length?rows[rows.length-1]:null,can=isAdmin&&canWrite,cur=fuelDoc();
+  var d=h('details',{class:'panel',style:'padding:10px 14px;margin-bottom:12px'});
+  d.open=fuelOpen;d.addEventListener('toggle',function(){fuelOpen=d.open});
+  d.appendChild(h('summary',{style:'cursor:pointer;font-weight:700',text:'油價與油耗：'+(last?'中油 95 無鉛汽油牌價 '+last.p+' 元／公升（'+last.date+' 起）':'尚無油價資料')}));
+  var box=h('div',{class:'mfuel',style:'margin-top:8px'});
+  box.appendChild(h('p',{class:'empty',style:'margin:0',text:'油價每天自動從台灣中油網站抓取 95 無鉛汽油牌價（只在牌價有變動時新增一筆）。油費＝行駛公里 ÷ 平均油耗 × 行程當天適用的單價，僅供參考。公司廠內加油價格可能與中油牌價不同；若知道廠內實際單價，可在下方手動新增，手動單價優先於自動抓取。'}));
+  box.appendChild(h('div',{class:'empty',style:'margin:0',text:'預設平均油耗：'+(+cur.kmPerL||DEF_KMPL)+' 公里／公升（各車可在車輛頁個別設定）'}));
+  var hist=rows.slice(-8).reverse();
+  hist.forEach(function(r){
+    box.appendChild(h('div',{class:'prow'},h('span',{class:'mono',text:r.date+' 起'}),h('span',{class:'mono',text:r.p+' 元／公升・'+(r.src==='manual'?'手動':'中油')}),
+      can&&r.src==='manual'?h('button',{type:'button',class:'ghost',title:'刪除這筆手動單價',style:'min-height:22px;padding:0 6px;color:var(--bad)',text:'✕',onclick:async function(){
+        try{await saveFuel({rows:(cur.rows||[]).filter(function(x){return x.date!==r.date})});toast('已刪除')}catch(e){writeErr(e)}}}):null));
+  });
+  if(!hist.length)box.appendChild(h('p',{class:'empty',style:'margin:0',text:'尚無油價資料。請管理者到 Apps Script 執行一次 updateFuelPrice，或在下方手動新增。'}));
+  if(can){
+    var kin=h('input',{type:'number',id:'fuKmpl',step:'0.1',min:'1',inputmode:'decimal',value:cur.kmPerL||'',placeholder:String(DEF_KMPL),style:'max-width:110px'});
+    box.appendChild(h('div',{class:'btnrow',style:'align-items:center'},h('span',{class:'empty',text:'預設平均油耗（公里／公升）'}),kin,h('button',{type:'button',text:'儲存',onclick:async function(){
+      var x=+kin.value;if(!(x>=1&&x<=100)){toast('請輸入 1～100 之間的數字');return}
+      try{await saveFuel({kmPerL:x});toast('已儲存預設油耗')}catch(e){writeErr(e)}}})));
+    var dIn=h('input',{type:'date',id:'fuDate',value:ds(new Date()),style:'max-width:160px'}),pIn=h('input',{type:'number',id:'fuPrice',step:'0.1',min:'1',inputmode:'decimal',placeholder:'單價（元／公升）',style:'max-width:150px'});
+    box.appendChild(h('div',{class:'btnrow',style:'align-items:center'},h('span',{class:'empty',text:'手動新增單價（優先於自動抓取）'}),dIn,pIn,h('button',{type:'button',text:'新增',onclick:async function(){
+      var p=+pIn.value;if(!dIn.value||!(p>=1&&p<=200)){toast('請填日期與單價');return}
+      var next=(cur.rows||[]).filter(function(x){return x.date!==dIn.value});next.push({date:dIn.value,p95:p});
+      try{await saveFuel({rows:next});toast('已新增');pIn.value=''}catch(e){writeErr(e)}}})));
+  }
+  d.appendChild(box);
+  return d;
+}
 function placesPanel(){
   var pl=placesDoc(),rows=(pl.rows||[]).slice(),origin=pl.origin||'W5大樓',can=isAdmin&&canWrite;
   var d=h('details',{class:'panel',style:'padding:10px 14px;margin-bottom:12px'});
@@ -883,18 +964,24 @@ function carList(){
   var plate=h('input',{type:'text',id:'nvPlate',placeholder:'例如 ABC-1234',autocapitalize:'characters'});
   var name=h('input',{type:'text',id:'nvName',placeholder:'車輛說明（選填）'});
   var km=h('input',{type:'number',id:'nvKm',inputmode:'numeric',placeholder:'目前里程數'});
+  var make=h('input',{type:'text',id:'nvMake',placeholder:'例如 Toyota',maxlength:'30'}),model=h('input',{type:'text',id:'nvModel',placeholder:'例如 Altis',maxlength:'30'});
   var mu=combo('nvUnit','其他單位（自行輸入）','請輸入管理單位');mu.fill(rosterUnits(),'');
   addBox.appendChild(h('div',{class:'two'},h('label',{class:'f'},h('span',{text:'車號'}),plate),h('label',{class:'f'},h('span',{text:'車輛說明'}),name)));
+  var kpl0=h('input',{type:'number',id:'nvKmpl',step:'0.1',min:'1',inputmode:'decimal',placeholder:'留空＝使用預設 '+(+fuelDoc().kmPerL||DEF_KMPL)});
+  addBox.appendChild(h('div',{class:'two'},h('label',{class:'f'},h('span',{text:'廠牌（選填）'}),make),h('label',{class:'f'},h('span',{text:'型號（選填）'}),model)));
+  addBox.appendChild(h('label',{class:'f'},h('span',{text:'平均油耗（公里／公升，選填）'}),kpl0,h('small',{class:'empty',style:'display:block'},'用來估算油費。可先查廠牌型號的油耗再填：',fuelLink())));
   addBox.appendChild(h('div',{class:'f'},h('span',null,'管理單位 ',h('em',{text:'*'})),mu.node));
   addBox.appendChild(h('label',{class:'f'},h('span',{text:'目前里程數（公里，選填）'}),km));
   addBox.appendChild(h('div',{class:'actions'},h('button',{type:'button',class:'primary',text:'新增',onclick:async function(){
     var p=plate.value.trim().toUpperCase();
     if(!/^[A-Z0-9][A-Z0-9\-]{2,15}$/.test(p)){toast('車號只能使用英數字與連字號');return}
     if(vehicle(p)){toast('這台車已存在');return}
+    var kp0=kpl0.value.trim()===''?null:+kpl0.value;
+    if(kp0!==null&&!(kp0>=1&&kp0<=100)){toast('平均油耗請輸入 1～100 之間的數字');return}
     if(!mu.get()){toast('請選擇或輸入管理單位');return}
-    try{await put('vehicles',{id:p,plate:p,name:name.value.trim(),mgmtUnit:mu.get(),lastMileage:km.value===''?null:+km.value});toast('已新增 '+p);addBox.hidden=true}catch(e){writeErr(e)}
+    try{await put('vehicles',{id:p,plate:p,name:name.value.trim(),make:make.value.trim(),model:model.value.trim(),kmPerL:kp0,mgmtUnit:mu.get(),lastMileage:km.value===''?null:+km.value});toast('已新增 '+p);addBox.hidden=true}catch(e){writeErr(e)}
   }})));
-  tools.appendChild(addBox);tools.appendChild(rosterPanel());tools.appendChild(placesPanel());
+  tools.appendChild(addBox);tools.appendChild(rosterPanel());tools.appendChild(placesPanel());tools.appendChild(fuelPanel());
   wrap.appendChild(h('div',{class:'sec-title'},h('h2',{text:'車輛'})));
   var grid=h('div',{class:'cars'});
   if(!data.vehicles.length)grid.appendChild(h('div',{class:'panel formcard'},h('h2',{text:'尚未建立車輛'}),h('p',{class:'empty',text:isAdmin?'請到頁面最下方按「＋ 新增車輛」輸入車號，系統就會產生可貼在車上的 QR Code。':'請管理者先新增車輛。'})));
@@ -905,7 +992,7 @@ function carList(){
     kv.appendChild(h('dt',{text:'最近一趟'}));kv.appendChild(h('dd',{text:lt?mdOf(lt.date)+'　'+lt.unit+' '+lt.driver:'尚無紀錄'}));
     kv.appendChild(h('dt',{text:'狀況'}));kv.appendChild(h('dd',null,stateLine(v.id)));
     grid.appendChild(h('div',{class:'panel vcard'},
-      h('div',{class:'vrow'},h('div',null,h('div',{class:'plate',text:v.plate}),h('div',{class:'empty',text:v.name||''}),h('div',{class:'empty',text:'管理單位：'+(v.mgmtUnit||'未設定')})),statusPill(v.id)),
+      h('div',{class:'vrow'},h('div',null,h('div',{class:'plate',text:v.plate}),carLine(v)?h('div',{class:'empty',text:carLine(v)}):null,h('div',{class:'empty',text:v.name||''}),h('div',{class:'empty',text:'管理單位：'+(v.mgmtUnit||'未設定')})),statusPill(v.id)),
       kv,
       h('div',{class:'btnrow'},
         h('button',{type:'button',class:'primary',text:'返回登記',disabled:!canWrite,onclick:function(){goto('trip',v.id)}}),
@@ -958,7 +1045,7 @@ function exportCars(){
 }
 function carDetail(v){
   var head=h('div',{class:'panel vhead'},
-    h('div',{class:'vrow'},h('div',null,h('div',{class:'plate',text:v.plate}),h('div',{class:'empty',text:v.name||''}),h('div',{class:'empty',text:'管理單位：'+(v.mgmtUnit||'未設定')})),statusPill(v.id)),
+    h('div',{class:'vrow'},h('div',null,h('div',{class:'plate',text:v.plate}),carLine(v)?h('div',{class:'empty',text:carLine(v)}):null,h('div',{class:'empty',text:v.name||''}),h('div',{class:'empty',text:'管理單位：'+(v.mgmtUnit||'未設定')})),statusPill(v.id)),
     monthPanel(v,true),lastBox(v.id,true),
     h('button',{type:'button',class:'primary',style:'min-height:52px;font-size:17px',disabled:!canWrite,text:'返回登記',onclick:function(){goto('trip',v.id)}}),h('button',{type:'button',disabled:!canWrite,text:'補登一筆（忘記登記時）',onclick:function(){gotoTrip(v.id,{backfill:true})}}));
   return h('div',{class:'vpage',style:'max-width:760px'},
@@ -967,11 +1054,17 @@ function carDetail(v){
 function editUnitPanel(v){
   if(!(isAdmin&&canWrite))return document.createComment('');
   var uc=combo('mgUnit','其他單位（自行輸入）','請輸入管理單位');uc.fill(rosterUnits(),v.mgmtUnit||'');
+  var kpl=h('input',{type:'number',id:'mgKmpl',step:'0.1',min:'1',inputmode:'decimal',placeholder:'留空＝使用預設 '+(+fuelDoc().kmPerL||DEF_KMPL),value:v.kmPerL||''});
+  var mk=h('input',{type:'text',id:'mgMake',maxlength:'30',placeholder:'例如 Toyota',value:v.make||''}),md=h('input',{type:'text',id:'mgModel',maxlength:'30',placeholder:'例如 Altis',value:v.model||''});
   return h('div',{class:'panel formcard',style:'margin-top:12px'},
+    h('div',{class:'two'},h('label',{class:'f'},h('span',{text:'廠牌'}),mk),h('label',{class:'f'},h('span',{text:'型號'}),md)),
+    h('label',{class:'f'},h('span',null,'平均油耗（公里／公升） ',h('small',{style:'display:inline;font-weight:400',text:'（直接用於油費計算）'})),kpl,h('small',{class:'empty',style:'display:block'},'可先查廠牌型號的油耗再填：',fuelLink(),'。官方為測試值，實際道路油耗通常較高，可依實際情況調整。')),
     h('div',{class:'f'},h('span',{text:'管理單位'}),uc.node),
-    h('div',{class:'actions'},h('button',{type:'button',text:'儲存管理單位',onclick:async function(){
+    h('div',{class:'actions'},h('button',{type:'button',text:'儲存',onclick:async function(){
       if(!uc.get()){toast('請選擇或輸入管理單位');return}
-      try{await put('vehicles',Object.assign({},v,{mgmtUnit:uc.get()}));toast('已更新管理單位')}catch(e){writeErr(e)}
+      var kv2=kpl.value.trim()===''?null:+kpl.value;
+      if(kv2!==null&&!(kv2>=1&&kv2<=100)){toast('平均油耗請輸入 1～100 之間的數字');return}
+      try{await put('vehicles',Object.assign({},v,{mgmtUnit:uc.get(),kmPerL:kv2,make:mk.value.trim(),model:md.value.trim()}));toast('已更新')}catch(e){writeErr(e)}
     }})));
 }
 function deleteVehiclePanel(v){
@@ -1047,10 +1140,14 @@ function tripForm(v){
       else if(dist===0)msgs.push(['soft','返回里程與出發里程相同（行駛 0 公里），請確認。']);
       else if(dist>TRIP_NORMAL_KM)msgs.push(['soft','本趟行駛 '+dist+' 公里，超過廠區內一般的 '+TRIP_NORMAL_KM+' 公里，請確認儀表板上的數字。']);
       else msgs.push(['ok','本趟行駛 '+dist+' 公里。']);
+      if(dist>0){
+        var fc=tripCost(v,dist,date.value),fp=priceOn(date.value);
+        if(fc!=null)msgs.push(['ok','參考油費約 '+money(fc)+' 元（'+dist+' 公里 ÷ 油耗 '+kmPerL(v)+' 公里／公升 × 中油 95 無鉛汽油牌價 '+fp.p+' 元／公升，'+fp.date+' 起適用'+(fp.early?'；該日期早於最早的價格紀錄，暫用最早一筆':'')+'）。公司廠內加油價格可能不同，實際以廠內結算為準。']);
+      }
     }
     msgs.forEach(function(m){mileMsg.appendChild(h('div',{class:'warn '+m[0],text:m[1]}))});
   }
-  kmOut.addEventListener('input',mileHint);kmRet.addEventListener('input',mileHint);mileHint();
+  kmOut.addEventListener('input',mileHint);kmRet.addEventListener('input',mileHint);date.addEventListener('input',mileHint);mileHint();
   var submit=h('button',{type:'button',class:'primary',text:mode==='edit'?'儲存修改':'送出登記',disabled:!canWrite,onclick:async function(){
     err.textContent='';var p=[];
     if(!unit.value.trim())p.push('請填寫單位');
@@ -1095,7 +1192,8 @@ function tripForm(v){
         await put('vehicleLogs',o);
       }
       remember('unit',base.unit);remember('driver',base.driver);if(mode==='new'){remember('route',base.route);remember('dest',route.dest())}
-      toast(mode==='edit'?'已儲存修改':'已登記，行駛 '+(base.retMileage-base.outMileage)+' 公里');goto('detail',v.id);
+      var tc=tripCost(v,base.retMileage-base.outMileage,base.date);
+      toast(mode==='edit'?'已儲存修改':'已登記，行駛 '+(base.retMileage-base.outMileage)+' 公里'+(tc!=null?'，參考油費約 '+money(tc)+' 元':''));goto('detail',v.id);
     }catch(e){writeErr(e);submit.disabled=false}
   }});
   var delBtn=mode==='edit'?h('button',{type:'button',class:'danger',text:'刪除這筆',onclick:async function(){
