@@ -759,23 +759,19 @@ function combo(id,otherLabel,ph){
   sel.addEventListener('change',function(){txt.hidden=sel.value!=='__o';if(!txt.hidden)txt.focus()});
   return {node:h('div',null,sel,txt),sel:sel,fill:fill,get:function(){return sel.value==='__o'?txt.value.trim():sel.value}};
 }
-function personFields(initUnit,initName,initTitle){
-  var units=rosterUnits(),tEdited=false;
-  var t=h('input',{type:'text',id:'oTitle',value:initTitle||'',list:'dlTitle',autocomplete:'off',maxlength:'30',placeholder:'例如 工程師（選填）'});
-  t.addEventListener('input',function(){tEdited=true});
-  var title={node:t,get value(){return t.value}};
+/* 職稱不用填：依單位與姓名從「單位及使用人清單」帶出；不在清單內的人員（手動輸入）不記職稱 */
+function personFields(initUnit,initName){
+  var units=rosterUnits(),note=h('div',{class:'empty',style:'margin-top:-4px',hidden:true});
+  function show(u,n){var tt=rosterTitle(u,n);note.textContent=tt?'職稱：'+tt:'';note.hidden=!tt}
   if(!units.length){
     var u=h('input',{type:'text',id:'oUnit',value:initUnit,list:'dlUnit',autocomplete:'off'}),d=h('input',{type:'text',id:'oDriver',value:initName,list:'dlDrv',autocomplete:'off'});
-    d.addEventListener('input',function(){if(!tEdited)t.value=''});   // 換了駕駛人，不沿用上一位的職稱
-    return {unit:{node:u,get value(){return u.value}},driver:{node:d,get value(){return d.value}},title:title};
+    return {unit:{node:u,get value(){return u.value}},driver:{node:d,get value(){return d.value}},titleNote:note,title:function(){return ''}};
   }
   var uc=combo('oUnit','其他單位（自行輸入）','請輸入單位代碼'),dc=combo('oDriver','其他（自行輸入姓名）','請輸入姓名');
-  uc.fill(units,initUnit);dc.fill(rosterNames(uc.get()),initName);
-  function sync(){var tt=rosterTitle(uc.get(),dc.get());if(tt){t.value=tt;tEdited=false}else if(!tEdited)t.value=''}
-  if(!initTitle)sync();
-  uc.sel.addEventListener('change',function(){dc.fill(rosterNames(uc.get()),'');sync()});
-  dc.sel.addEventListener('change',sync);
-  return {unit:{node:uc.node,get value(){return uc.get()}},driver:{node:dc.node,get value(){return dc.get()}},title:title};
+  uc.fill(units,initUnit);dc.fill(rosterNames(uc.get()),initName);show(uc.get(),dc.get());
+  uc.sel.addEventListener('change',function(){dc.fill(rosterNames(uc.get()),'');show(uc.get(),dc.get())});
+  dc.sel.addEventListener('change',function(){show(uc.get(),dc.get())});
+  return {unit:{node:uc.node,get value(){return uc.get()}},driver:{node:dc.node,get value(){return dc.get()}},titleNote:note,title:function(){return rosterTitle(uc.get(),dc.get())}};
 }
 async function readSheets(file){
   var buf=await file.arrayBuffer(),wb;
@@ -1125,7 +1121,7 @@ function tripForm(v){
   if(mode==='edit'&&!(isAdmin&&canWrite))return h('div',{class:'vpage'},h('div',{class:'panel formcard'},h('h2',{text:'只有管理者可以修改紀錄'}),h('button',{type:'button',text:'回車輛頁面',onclick:function(){goto('detail',v.id)}})));
   var st=vState(v.id),last=lastMileage(v.id),lock=mode==='new';
   var date=h('input',{type:'date',id:'tDate',value:rec?rec.date:ds(new Date())});
-  var pf=personFields(rec?rec.unit:mem('unit'),rec?rec.driver:mem('driver'),rec?rec.title:mem('title')),unit=pf.unit,driver=pf.driver,drvTitle=pf.title;
+  var pf=personFields(rec?rec.unit:mem('unit'),rec?rec.driver:mem('driver')),unit=pf.unit,driver=pf.driver,drvTitle=pf.title;
   var route=routeField(rec?rec.route:null),viaF=viaField(rec?viaList(rec):[]);
   var kmOut=h('input',{type:'number',id:'tKmOut',inputmode:'numeric',value:rec?rec.outMileage:(mode==='back'?'':last)});
   var kmRet=h('input',{type:'number',id:'tKmRet',inputmode:'numeric',placeholder:'返回時里程表',value:rec?rec.retMileage:''});
@@ -1195,7 +1191,7 @@ function tripForm(v){
     submit.disabled=true;
     try{
       var now=Date.now();
-      var base={plate:v.id,status:'returned',date:date.value,unit:unit.value.trim(),driver:driver.value.trim(),title:drvTitle.value.trim(),route:route.value.trim(),via:viaF.get(),
+      var base={plate:v.id,status:'returned',date:date.value,unit:unit.value.trim(),driver:driver.value.trim(),title:(drvTitle()||(rec&&rec.driver===driver.value.trim()?(rec.title||''):'')),route:route.value.trim(),via:viaF.get(),
         outMileage:+kmOut.value,outTime:tOut.value,retMileage:+kmRet.value,retTime:tRet.value,retDate:date.value,look:look.get(),cond:cond.get(),note:note.value.trim()};
       if(mode==='edit')await put('vehicleLogs',Object.assign({},rec,base,{editedAt:now,editedReason:why.value.trim(),updatedAt:now}));
       else{
@@ -1203,7 +1199,7 @@ function tripForm(v){
         if(mode==='back'){o.backfill=true;o.backfillReason=why.value.trim();o.backfillAt=now}
         await put('vehicleLogs',o);
       }
-      remember('unit',base.unit);remember('driver',base.driver);remember('title',base.title);if(mode==='new'){remember('route',base.route);remember('dest',route.dest())}
+      remember('unit',base.unit);remember('driver',base.driver);if(mode==='new'){remember('route',base.route);remember('dest',route.dest())}
       var tc=tripCost(v,base.retMileage-base.outMileage,base.date);
       toast(mode==='edit'?'已儲存修改':'已登記，行駛 '+(base.retMileage-base.outMileage)+' 公里'+(tc!=null?'，參考油費約 '+money(tc)+' 元':''));goto('detail',v.id);
     }catch(e){writeErr(e);submit.disabled=false}
@@ -1226,7 +1222,7 @@ function tripForm(v){
       h('div',{class:'vrow'},h('h2',{text:title}),h('span',{class:'mono',style:'font-weight:700;font-size:18px',text:v.plate})),
       h('p',{class:'empty',style:'margin:0',text:sub}),mode==='new'?monthPanel(v,false):null,mode==='new'?lastBox(v.id):null,
       field('日期',date,null,true),
-      h('div',{class:'two'},field('單位',unit.node,'請填寫單位代碼',true),field('駕駛人',driver.node,null,true)),field('職稱（選填）',drvTitle.node,null,false),
+      h('div',{class:'two'},field('單位',unit.node,'請填寫單位代碼',true),field('駕駛人',driver.node,null,true)),pf.titleNote,
       field('往返地點',route.node,null,true),h('div',{class:'f'},h('span',{text:'中途點（選填，依經過順序）'}),viaF.node),
       h('div',{class:'two'},field('出發里程數（公里）',kmOut,mode==='new'&&last!==''?'上次返回：'+last+' 公里':null,true),field('返回里程數（公里）',kmRet,null,true)),mileMsg,
       h('div',{class:'two'},field('出發時間',tOut,null,true),field('返回時間',tRet,null,true)),
@@ -1234,7 +1230,7 @@ function tripForm(v){
       h('div',{class:'chk'},h('div',null,h('span',{text:'車況*'}),h('small',{class:'empty',style:'display:block',text:lock&&st.cond.bad?'已登記異常，維修完成後由管理者標記修復':'檢查包含儀表（油表、水溫及儀表各項燈號）、煞車、喇叭、燈號等。'})),cond.node),
       noteWrap,
       why?field(mode==='edit'?'修改原因':'補登原因',why,null,true):null,
-      datalist('dlUnit','unit'),datalist('dlDrv','driver'),datalist('dlTitle','title'),datalist('dlRoute','route'),err),
+      datalist('dlUnit','unit'),datalist('dlDrv','driver'),datalist('dlRoute','route'),err),
     h('div',{class:'submitbar'},delBtn,h('span',{style:'flex:1'}),h('button',{type:'button',text:'取消',onclick:function(){goto('detail',v.id)}}),submit));
 }
 
