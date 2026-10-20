@@ -250,6 +250,7 @@ dialog h2{margin:0;font-size:18px}
 .mnote{font-size:12px;color:var(--mute);margin-top:6px}
 .lb-v{font-size:28px;font-weight:700;line-height:1.2}
 .lb-s{font-size:12px;color:var(--mute);overflow-wrap:anywhere}
+.lb-st{font-size:14px;margin-top:4px}
 .hbtn{background:transparent;border:1px solid rgba(255,255,255,.55);color:inherit;min-height:32px;padding:3px 12px;font-size:13px}
 .hbtn:hover{background:rgba(255,255,255,.14)}
 .eqgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
@@ -638,10 +639,10 @@ function fromHash(){
 }
 window.addEventListener('hashchange',fromHash);
 function statusPill(p){return null}
-function lastBox(p){
+function lastBox(p,withState){
   var l=logsOf(p).find(function(x){return x.status==='returned'&&x.retMileage!=null}),v=vehicle(p),km=lastMileage(p);
   var sub=l?mdOf(l.date)+' '+(l.retTime||'')+'　'+l.unit+' '+l.driver+'　'+routeText(l):(km!==''?'建檔里程，尚無行車紀錄':'尚無里程資料');
-  return h('div',{class:'lastbox'},h('div',{class:'lb-k',text:'上次返回里程'}),h('div',{class:'lb-v mono',text:km===''?'—':km+' 公里'}),h('div',{class:'lb-s',text:sub}));
+  return h('div',{class:'lastbox'},h('div',{class:'lb-k',text:'上次返回里程'}),h('div',{class:'lb-v mono',text:km===''?'—':km+' 公里'}),h('div',{class:'lb-s',text:sub}),withState?h('div',{class:'lb-st'},'狀況　',stateLine(p)):null);
 }
 function markText(x,note){return x==='bad'?h('span',{class:'mk bad',text:'✕',title:note||'異常'}):h('span',{class:'mk ok',text:'✓',title:'正常'})}
 function vState(p){
@@ -956,12 +957,9 @@ function exportCars(){
   saveCsv('車輛駕駛記錄.csv',rows);
 }
 function carDetail(v){
-  var kv=h('dl',{class:'kv'});
-  kv.appendChild(h('dt',{text:'上次返回里程'}));kv.appendChild(h('dd',{class:'mono',text:lastMileage(v.id)===''?'—':lastMileage(v.id)+' 公里'}));
-  kv.appendChild(h('dt',{text:'狀況'}));kv.appendChild(h('dd',null,stateLine(v.id)));
   var head=h('div',{class:'panel vhead'},
     h('div',{class:'vrow'},h('div',null,h('div',{class:'plate',text:v.plate}),h('div',{class:'empty',text:v.name||''}),h('div',{class:'empty',text:'管理單位：'+(v.mgmtUnit||'未設定')})),statusPill(v.id)),
-    monthPanel(v,true),lastBox(v.id),kv,
+    monthPanel(v,true),lastBox(v.id,true),
     h('button',{type:'button',class:'primary',style:'min-height:52px;font-size:17px',disabled:!canWrite,text:'返回登記',onclick:function(){goto('trip',v.id)}}),h('button',{type:'button',disabled:!canWrite,text:'補登一筆（忘記登記時）',onclick:function(){gotoTrip(v.id,{backfill:true})}}));
   return h('div',{class:'vpage',style:'max-width:760px'},
     h('div',null,h('button',{type:'button',class:'ghost',text:'← 車輛清單',onclick:function(){cv={mode:'list'};renderCars()}})),head,editUnitPanel(v),repairPanel(v),logSheet(v,10),deleteVehiclePanel(v));
