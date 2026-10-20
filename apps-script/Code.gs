@@ -222,3 +222,88 @@ function rebuildView_() {
   sh.clear();
   sh.getRange(1, 1, rows.length, rows[0].length).setValues(rows);
 }
+
+// ---------------------------------------------------------------- 每週自動備份：寄送行車紀錄（CSV）與完整備份（JSON）
+
+/**
+ * 收件人：預設寄給執行這個腳本的帳號（也就是你自己）。
+ * 行車紀錄含人員姓名與行程，建議維持寄給自己，不要改成別人的信箱。
+ */
+var BACKUP_TO = '';   // 留空 = 寄給腳本擁有者
+
+/** 只需在編輯器執行一次：設定每週一早上 7～8 點自動寄出。重複執行不會建立重複的排程 */
+function installWeeklyBackup() {
+  removeWeeklyBackup();
+  ScriptApp.newTrigger('weeklyBackup').timeBased().onWeekDay(ScriptApp.WeekDay.MONDAY).atHour(7).create();
+  Logger.log('已設定：每週一 07:00～08:00 自動寄送備份。');
+}
+
+/** 取消每週自動寄送 */
+function removeWeeklyBackup() {
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'weeklyBackup') ScriptApp.deleteTrigger(t);
+  });
+}
+
+/** 由排程呼叫，也可以在編輯器手動執行來測試（會立刻寄出一封信） */
+function weeklyBackup() {
+  var to = BACKUP_TO || Session.getEffectiveUser().getEmail();
+  try {
+    // 直接從原始資料產生表格（不經過試算表儲存格），避免 Google 試算表把 "08:30"、"2026-10-19"
+    // 自動轉成日期時間物件，造成 CSV 裡的時間格式錯誤
+    var values = csvRows_();
+    var count = Math.max(0, values.length - 1);   // 扣掉標題列
+    var csv = '﻿' + values.map(function (row) {
+      return row.map(csvCell_).join(',');
+    }).join('\r\n');   // 開頭的 BOM 讓 Excel 正確顯示中文
+    // 完整備份：格式與網頁「備份全部資料」相同，可用網頁的「從備份檔還原」匯入
+    var c = {}, lines = [], total = 0;
+    Object.keys(COLLECTIONS).forEach(function (n) {
+      var rows = readAll_(n);
+      c[n] = rows;
+      total += rows.length;
+      lines.push(n + '：' + rows.length + ' 筆');
+    });
+    var json = JSON.stringify({app: 'eip-booking', version: 1, at: new Date().toISOString(), collections: c}, null, 1);
+    var day = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+    MailApp.sendEmail({
+      to: to,
+      subject: '【車輛借用系統】每週備份 ' + day,
+      body: '附件有兩個檔案（' + day + '）：\n' +
+        '1. 行車紀錄_' + day + '.csv：行車紀錄 ' + count + ' 筆，可用 Excel 開啟閱讀、列印，不能用來還原。\n' +
+        '2. 車輛借用系統備份_' + day + '.json：完整備份，共 ' + total + ' 筆資料，可還原。\n\n' +
+        lines.join('\n') + '\n\n' +
+        '還原方式：管理者登入網頁 → 備份與還原 → 從備份檔還原（選 JSON 檔）。\n' +
+        '檔案含人員姓名與行程，請存放在有權限控管的位置，不要上傳到公開網站或 GitHub。',
+      attachments: [
+        Utilities.newBlob(csv, 'text/csv', '行車紀錄_' + day + '.csv'),
+        Utilities.newBlob(json, 'application/json', '車輛借用系統備份_' + day + '.json')
+      ]
+    });
+  } catch (err) {
+    MailApp.sendEmail(to, '【車輛借用系統】每週備份失敗', '錯誤訊息：' + (err && err.message || err));
+    throw err;
+  }
+}
+
+/** 行車紀錄表格資料（欄位與「行車紀錄（檢視用）」相同，日期與時間保持文字） */
+function csvRows_() {
+  var logs = readAll_('vehicleLogs').sort(function (a, b) {
+    var x = (a.date || '') + ' ' + (a.outTime || ''), y = (b.date || '') + ' ' + (b.outTime || '');
+    return x < y ? -1 : x > y ? 1 : 0;
+  });
+  var rows = [['車號', '日期', '單位', '駕駛人', '往返地點', '出發里程數', '返回里程數', '出發時間', '返回時間', '外觀', '車況', '說明', '補登原因', '修改原因']];
+  logs.forEach(function (l) {
+    rows.push([l.plate || '', l.date || '', l.unit || '', l.driver || '', l.route || '', l.outMileage == null ? '' : l.outMileage,
+      l.retMileage == null ? '' : l.retMileage, l.outTime || '', l.retTime || '',
+      l.look === 'bad' ? '✕' : '✓', l.cond === 'bad' ? '✕' : '✓', l.note || '', l.backfillReason || '', l.editedReason || '']);
+  });
+  return rows;
+}
+
+/** 轉成 CSV 儲存格；文字若以 = + - @ 開頭，前面加單引號，避免被 Excel 當成公式執行 */
+function csvCell_(v) {
+  var s = String(v == null ? '' : v);
+  if (typeof v === 'string' && /^[=+\-@]/.test(s)) s = "'" + s;
+  return '"' + s.replace(/"/g, '""') + '"';
+}
