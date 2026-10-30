@@ -277,6 +277,12 @@ table.sheet th{background:var(--surface2);color:var(--ink);font-size:13px;line-h
 .chain.ok{background:var(--ok-bg);color:var(--ok)}
 .chain.bad{background:var(--bad-bg);color:var(--bad)}
 table.sheet td.gapcell{box-shadow:inset 3px 0 0 var(--bad)}
+/* desktop: let unit / driver / route wrap so the whole table fits without sideways scrolling (phone keeps the original layout) */
+@media (min-width:641px){
+  table.sheet{min-width:0}
+  table.sheet th,table.sheet td{padding:6px 5px}
+  table.sheet td.wrapc{white-space:normal;overflow-wrap:anywhere}
+}
 .todaytag{display:inline-block;margin-left:6px;padding:0 8px;border-radius:9px;background:var(--today-edge);color:#1a1300;font-size:11px;font-weight:700;vertical-align:1px}
 .day.today{background:color-mix(in srgb,var(--today-edge) 24%,var(--surface));box-shadow:inset 0 0 0 2px var(--today-edge)}
 /* ---- text size & touch targets (phones at the car, desktop for the admin) ---- */
@@ -942,7 +948,7 @@ function logSheet(v,limit){
     }
     var retT=ret?((l.retDate&&l.retDate!==l.date?mdOf(l.retDate)+' ':'')+l.retTime):'—';
     tb.appendChild(h('tr',null,
-      h('td',{rowspan:2,style:'white-space:nowrap'},ymdOf(l.date),l.backfill?h('span',{class:'bftag',title:'補登：'+(l.backfillReason||''),text:'補'}):null,l.editedAt?h('span',{class:'bftag ed',title:'已修改：'+(l.editedReason||''),text:'改'}):null),h('td',{rowspan:2,text:l.unit}),h('td',{rowspan:2,text:drv(l)}),h('td',{rowspan:2,class:'l',text:routeText(l)}),
+      h('td',{rowspan:2,style:'white-space:nowrap'},ymdOf(l.date),l.backfill?h('span',{class:'bftag',title:'補登：'+(l.backfillReason||''),text:'補'}):null,l.editedAt?h('span',{class:'bftag ed',title:'已修改：'+(l.editedReason||''),text:'改'}):null),h('td',{rowspan:2,text:l.unit}),h('td',{rowspan:2,class:'wrapc',text:drv(l)}),h('td',{rowspan:2,class:'l wrapc',text:routeText(l)}),
       h('td',{class:'mono'+(chain&&chain.className.indexOf('bad')>0?' gapcell':'')},l.outMileage+' 公里',chain?h('br'):null,chain),h('td',{class:'mono',text:l.outTime}),
       h('td',{rowspan:2},markText(l.look,l.note)),h('td',{rowspan:2},markText(l.cond,l.note)),adm?h('td',{rowspan:2},h('button',{type:'button',class:'ghost',style:'min-height:28px;padding:0 8px',text:'編輯',onclick:function(){gotoTrip(v.id,{editId:l.id})}})):null));
     tb.appendChild(h('tr',null,
