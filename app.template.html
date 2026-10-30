@@ -278,6 +278,9 @@ table.sheet th{background:var(--surface2);color:var(--ink);font-size:13px;line-h
 .chain.bad{background:var(--bad-bg);color:var(--bad)}
 table.sheet td.gapcell{box-shadow:inset 3px 0 0 var(--bad)}
 /* desktop: let unit / driver / route wrap so the whole table fits without sideways scrolling (phone keeps the original layout) */
+@media (min-width:900px){
+  .sheetpanel{justify-self:center;width:min(1040px,calc(100vw - 32px))}
+}
 @media (min-width:641px){
   table.sheet{min-width:0}
   table.sheet th,table.sheet td{padding:6px 5px}
@@ -955,7 +958,7 @@ function logSheet(v,limit){
       h('td',{class:'mono',text:ret?l.retMileage+' 公里':'使用中'}),h('td',{class:'mono',text:retT})));
   });
   var th=function(a,b){return h('th',null,a,b?h('br'):null,b||null)};
-  return h('div',{class:'panel'},
+  return h('div',{class:'panel sheetpanel'},
     h('div',{class:'sheethead'},h('div',{class:'sheettitle',text:'車輛駕駛記錄表'}),h('div',{class:'mono',style:'font-weight:700',text:'車號：'+v.plate})),
     h('div',{class:'tablewrap'},h('table',{class:'sheet'},
       h('thead',null,h('tr',null,th('日期'),th('單位'),th('駕駛人'),th('往返地點'),th('出發里程數','返回里程數'),th('出發時間','返回時間'),th('外觀'),th('車況*'),adm?th(''):null)),tb)),
