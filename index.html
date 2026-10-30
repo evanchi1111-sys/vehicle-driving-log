@@ -275,6 +275,10 @@ table.sheet th,table.sheet td{border:1px solid var(--mute);padding:6px 8px;text-
 table.sheet td.l{text-align:left}
 table.sheet th{background:var(--surface2);color:var(--ink);font-size:13px;line-height:1.3}
 .sheetfoot{font-size:12px;color:var(--mute);padding:6px 14px 12px}
+.chain{display:inline-block;margin-top:2px;padding:0 6px;border-radius:8px;font-size:11px;font-weight:700;font-family:var(--sans)}
+.chain.ok{background:var(--ok-bg);color:var(--ok)}
+.chain.bad{background:var(--bad-bg);color:var(--bad)}
+table.sheet td.gapcell{box-shadow:inset 3px 0 0 var(--bad)}
 .todaytag{display:inline-block;margin-left:6px;padding:0 8px;border-radius:9px;background:var(--today-edge);color:#1a1300;font-size:11px;font-weight:700;vertical-align:1px}
 .day.today{background:color-mix(in srgb,var(--today-edge) 24%,var(--surface));box-shadow:inset 0 0 0 2px var(--today-edge)}
 /* ---- text size & touch targets (phones at the car, desktop for the admin) ---- */
@@ -928,14 +932,20 @@ function seg2(init,onchange,locked){
 
 /* the paper sheet: one block per trip, two lines (出發 / 返回) */
 function logSheet(v,limit){
-  var logs=logsOf(v.id).slice(0,limit||30),tb=h('tbody'),adm=isAdmin&&canWrite;
+  var all=logsOf(v.id),logs=all.slice(0,limit||30),tb=h('tbody'),adm=isAdmin&&canWrite;
   if(!logs.length)tb.appendChild(h('tr',null,h('td',{colspan:8+(adm?1:0),class:'l',style:'text-align:center;color:var(--mute)',text:'尚無紀錄。掃描車上的 QR Code 即可登記。'})));
-  logs.forEach(function(l){
+  logs.forEach(function(l,i){
     var ret=l.status==='returned';
+    /* continuity: this trip's departure vs the previous (older) trip's return */
+    var prev=all[i+1],chain=null;
+    if(prev&&prev.status==='returned'&&prev.retMileage!==''&&l.outMileage!==''){
+      var d=+l.outMileage-+prev.retMileage;
+      chain=d===0?h('span',{class:'chain ok',title:'與上一趟返回里程（'+prev.retMileage+'）相符',text:'✓ 接上趟'}):h('span',{class:'chain bad',title:'上一趟（'+mdOf(prev.date)+'）返回里程為 '+prev.retMileage,text:'⚠ 上趟 '+prev.retMileage+'（'+(d>0?'+':'−')+Math.abs(d)+'）'});
+    }
     var retT=ret?((l.retDate&&l.retDate!==l.date?mdOf(l.retDate)+' ':'')+l.retTime):'—';
     tb.appendChild(h('tr',null,
       h('td',{rowspan:2,style:'white-space:nowrap'},ymdOf(l.date),l.backfill?h('span',{class:'bftag',title:'補登：'+(l.backfillReason||''),text:'補'}):null,l.editedAt?h('span',{class:'bftag ed',title:'已修改：'+(l.editedReason||''),text:'改'}):null),h('td',{rowspan:2,text:l.unit}),h('td',{rowspan:2,text:drv(l)}),h('td',{rowspan:2,class:'l',text:routeText(l)}),
-      h('td',{class:'mono',text:l.outMileage+' 公里'}),h('td',{class:'mono',text:l.outTime}),
+      h('td',{class:'mono'+(chain&&chain.className.indexOf('bad')>0?' gapcell':'')},l.outMileage+' 公里',chain?h('br'):null,chain),h('td',{class:'mono',text:l.outTime}),
       h('td',{rowspan:2},markText(l.look,l.note)),h('td',{rowspan:2},markText(l.cond,l.note)),adm?h('td',{rowspan:2},h('button',{type:'button',class:'ghost',style:'min-height:28px;padding:0 8px',text:'編輯',onclick:function(){gotoTrip(v.id,{editId:l.id})}})):null));
     tb.appendChild(h('tr',null,
       h('td',{class:'mono',text:ret?l.retMileage+' 公里':'使用中'}),h('td',{class:'mono',text:retT})));
@@ -945,7 +955,7 @@ function logSheet(v,limit){
     h('div',{class:'sheethead'},h('div',{class:'sheettitle',text:'車輛駕駛記錄表'}),h('div',{class:'mono',style:'font-weight:700',text:'車號：'+v.plate})),
     h('div',{class:'tablewrap'},h('table',{class:'sheet'},
       h('thead',null,h('tr',null,th('日期'),th('單位'),th('駕駛人'),th('往返地點'),th('出發里程數','返回里程數'),th('出發時間','返回時間'),th('外觀'),th('車況*'),adm?th(''):null)),tb)),
-    h('div',{class:'sheetfoot',text:'備註：車況檢查包含儀表（油表、水溫及儀表各項燈號）、煞車、喇叭、燈號等。外觀、車況欄：✓ 表示正常，✕ 表示有異常。'}));
+    h('div',{class:'sheetfoot',text:'備註：車況檢查包含儀表（油表、水溫及儀表各項燈號）、煞車、喇叭、燈號等。外觀、車況欄：✓ 表示正常，✕ 表示有異常。出發里程下方的標記，是與上一趟返回里程比對：✓ 表示相連，⚠ 表示不連續（括號為差距公里數）。'}));
 }
 
 function isLoading(){return mode==='connecting'||(remote&&!loaded&&!dbErr)}
